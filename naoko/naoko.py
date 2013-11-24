@@ -720,6 +720,7 @@ class Naoko(object):
                          "self"             : self.selfInfo,
                          "kick"             : self.kicked}"""
         self.handlers = {"chatMsg"          : self.chat,
+                        "setAFK"            : self.unAFK,
                         "channelOpts"       : self.ignore,
                         "userlist"          : self.users,
                         "addUser"           : self.addUser,
@@ -1099,6 +1100,12 @@ class Naoko(object):
     def ignore(self, tag, data):
         self.logger.debug("Ignoring %s", tag)
         #self.logger.debug("Ignoring %s, %s", tag, data)
+
+    # Prevents Naoko from staying afk to keep voteskip more consistent
+    def unAFK(self,tag, data):
+        if data["name"] == self.name and data["afk"]:
+            self.st_queue.append("/afk")
+            self.logger.debug("Sending '/afk' to CyTube")
 
     def login(self, tag, data):
         if not data["success"] or "error" in data:
