@@ -792,6 +792,7 @@ class Naoko(object):
                                 "steak"             : self.steak,
                                 "poll"              : self.poll,
                                 "endpoll"           : self.endPoll,
+                                "who"               : self.who,
                                 # Functions that require a database
                                 "addrandom"         : self.addRandom,
                                 "blacklist"         : self.blacklist,
@@ -1830,6 +1831,11 @@ class Naoko(object):
     def ask(self, command, user, data):
         if not data: return
         self.enqueueMsg("[Ask: %s] %s" % (data, random.choice(["Yes", "No"])))
+
+    def who(self, command, user, data):
+        if not data: return
+        self.enqueueMsg("[Who: %s] %s" % (data,
+                                          random.choice(self.userlist.keys())))
 
     def eightBall(self, command, user, data):
         if not data: return
