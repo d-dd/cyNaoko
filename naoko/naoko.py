@@ -20,7 +20,7 @@ import re
 from urllib2 import Request, urlopen
 from collections import namedtuple, deque
 import ConfigParser
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from lib.repl import Repl
 from settings import *
@@ -187,6 +187,9 @@ class Naoko(object):
         self._initCommandHandlers()
         self._initIRCCommandHandlers()
         self._initPersistentSettings()
+
+        # Save init time for uptime calculation
+        self.startTime = time.time()
 
         self.rankList = {}
         self.room_info = {}
@@ -800,6 +803,9 @@ class Naoko(object):
                                 "poll"              : self.poll,
                                 "endpoll"           : self.endPoll,
                                 "who"               : self.who,
+                                "greet"             : self.greet,
+                                "bye"               : self.bye,
+                                "uptime"            : self.uptime,
                                 # Functions that require a database
                                 "addrandom"         : self.addRandom,
                                 "blacklist"         : self.blacklist,
@@ -840,6 +846,9 @@ class Naoko(object):
                                    "ask"                : self.ask,
                                    "8ball"              : self.eightBall,
                                    "steak"              : self.steak,
+                                   "greet"              : self.greet,
+                                   "bye"                : self.bye,
+                                   "uptime"             : self.uptime,
                                    "d"                  : self.dice,
                                    "dice"               : self.dice,
                                    "cleverbot"          : self.cleverbot,
@@ -1849,6 +1858,17 @@ class Naoko(object):
         if not data: return
         self.enqueueMsg("[Who: %s] %s" % (data,
                                           random.choice(self.userlist.keys())))
+
+    def greet(self, command, user, data):
+        self.enqueueMsg("Hi, %s." % user.name)
+
+    def bye(self, command, user, data):
+        self.enqueueMsg("Goodbye, %s." % user.name)
+
+    def uptime(self, command, user, data):
+        uptime = time.time() - self.startTime
+        uptime = str(timedelta(seconds=round(uptime)))
+        self.enqueueMsg("Uptime: %s" % uptime)
 
     def eightBall(self, command, user, data):
         if not data: return
