@@ -736,6 +736,12 @@ class Naoko(object):
                         "closePoll"         : self.ignore,
                         "newPoll"           : self.ignore,
                         "updatePoll"        : self.ignore,
+                        "voteskip"          : self.ignore,
+                        "drinkCount"        : self.ignore,
+                        "channelCSSJS"      : self.ignore,
+                        "setPermissions"    : self.ignore,
+                        "setMotd"           : self.ignore,
+                        "joinMessage"       : self.ignore,
                         "queueFail"         : self.ignore, # Might want to catch these if there's ever something cytube catches that Naoko doesn't
                         "mediaUpdate"       : self.mediaUpdate,
                         "changeMedia"       : self.mediaUpdate,
