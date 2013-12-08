@@ -917,8 +917,8 @@ class Naoko(object):
         if not self.vidlist or len(self.vidlist) <= 1:
             if self.managing:
                 self.stExecute(package(self.addRandom, "addrandom", self.selfUser, ""))
-            else:
-                self.stExecute(package(self.addRandom, "addrandom 1", self.selfUser, ""))
+            #else:
+                #self.stExecute(package(self.addRandom, "addrandom 1", self.selfUser, ""))
         else:
             self.state.state = self._STATE_NORMAL_SKIP
             self.skipOverride = True
