@@ -191,6 +191,7 @@ class Naoko(object):
         # Save init time for uptime calculation
         self.startTime = time.time()
 
+        self.channelPermissions = {}
         self.rankList = {}
         self.room_info = {}
         self.vidlist = []
@@ -725,9 +726,11 @@ class Naoko(object):
         self.handlers = {"chatMsg"          : self.chat,
                         "setAFK"            : self.unAFK,
                         "channelOpts"       : self.ignore,
+                        "setPermissions"    : self.savePermissions,
                         "userlist"          : self.users,
                         "addUser"           : self.addUser,
                         "userLeave"         : self.remUser,
+                        "setUserRank"       : self.ignore,
                         "setCurrent"        : self.currentVideo,
                         "setPlaylistMeta"   : self.playlistMeta,
                         "queue"             : self.addMedia,
@@ -742,7 +745,6 @@ class Naoko(object):
                         "voteskip"          : self.ignore,
                         "drinkCount"        : self.ignore,
                         "channelCSSJS"      : self.ignore,
-                        "setPermissions"    : self.ignore,
                         "setMotd"           : self.ignore,
                         "joinMessage"       : self.ignore,
                         "queueFail"         : self.ignore, # Might want to catch these if there's ever something cytube catches that Naoko doesn't
@@ -1122,6 +1124,10 @@ class Naoko(object):
             self.st_queue.append("/afk")
             self.logger.debug("Sending '/afk' to CyTube")
 
+    def savePermissions(self, tag, data):
+        self.logger.info('Saving Channel Permissions')
+        self.channelPermissions = data
+
     def login(self, tag, data):
         if not data["success"] or "error" in data:
             if "error" in data:
@@ -1255,6 +1261,9 @@ class Naoko(object):
 
     @hasPermission("SKIP")
     def skip(self, command, user, data):
+        if self.selfUser.rank < self.channelPermissions["playlistjump"]:
+            self.logger.info("Not enough rank to perform %s." % command)
+            return
         self.nextVideo()
 
     @hasPermission("SKIP")
