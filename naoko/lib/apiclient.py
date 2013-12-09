@@ -401,3 +401,69 @@ class APIClient(object):
         finally:
             con.close()
             return data
+
+    def getVocaDbApi(self, service, vidId):
+         """Returns vocadb id and data to the main thread"""
+         if service not in ("yt", "vm"): # only Youtube and Vimeo for now
+             return None, None
+         # First, call VocaDB API by Youtube ID
+         if service == "yt":
+             vocadb_id, voca_data = self._getVocaDbApi(service, vidId)
+             if vocadb_id:
+                 self.logger.info("Successfully obtained APi via Youtube ID.")
+                 return vocadb_id, voca_data
+         # if Youtube ID lookup fails, parse Youtube description for smid
+         nicoId = self._getNicoId(service, vidId)
+         if nicoId:
+             pass
+
+    def _getVocaDbApi(self, service, vidId):
+        
+        url = ["http://vocadb.net/Api/v1/Song/ByPV"]
+        opts = "&lang=romaji&IncludeAlbums=False&includeTags=False"
+        url.extend(["?pvID=", vidId, "&service=", service, opts])
+        url = ''.join(url)
+        self.logger.debug("Requesting data from VocaDB: %s" % url)
+
+        j = self._getjsonApi(url, "VocaDB")
+        
+    def _getNicoId(self, service, vidId):
+        if service == "yt":
+            url = ''.join(["https://gdata.youtube.com/feeds/api/videos/", vidID,
+                   "?v=2&fields=media:group(media:description)&alt=json"])
+            jsonDesc = self._getJsonApi(url, "Youtube")
+            if jsonDesc:
+                try:
+                    di = json.loads(js)
+                    desc = di["entry"]["media$group"]["media$description"]["$t"]
+                except (KeyError, TypeError) as e:
+                    logger.error("Error parsing json: %s" % repr(e))
+                    return None
+                nicoID = self._parseDesc(desc)
+                return nicoID
+        return None
+
+    def _getJsonApi(self, url, provider):
+        try:
+            if provider == "VocaDB":
+                return urllib2.urlopen(urllib2.Request(url, headers=USER_AGENT),
+                                       timeout=5).read()
+            else:
+                return urllib2.urlopen(urllib2.Request(url), timeout=5).read()
+        except urllib2.socket.timeout, e:
+            self.logger.error("API Error: %s . %s" % (url, e))
+        except urllib2.URLError, e:
+            self.logger.error("API Error: %s . %s" % (url, e))
+        except urllib2.HTTPError, e:
+            self.logger.error("API Error: %s . %s" % (url, e))
+        return None
+
+    def _parseDesc(self, desc):
+        matchObj = re.search(r"sm[0-9]{8}|nm[0-9]{8}", desc)
+        if matchObj:
+            return matchObj.group()
+        else:
+            logger.info("_parseDesc: no match found")
+            return None
+
+

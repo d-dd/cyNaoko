@@ -25,3 +25,6 @@ API_THROTTLE = 0.5
 
 # Countries a video must be able to play in
 REQUIRED_COUNTRIES = set(["CA", "US"])
+
+# Custom user agent for VocaDB API requests, should be more descriptive
+USER_AGENT = {"User-Agent": "cyNaoko"}
