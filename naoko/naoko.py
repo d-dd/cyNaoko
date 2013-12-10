@@ -977,10 +977,10 @@ class Naoko(object):
         self.api_queue.appendleft(package(self._checkVideo, site, vid))
         self.apiAction.set()
 
-    # Skips the current invalid video if she is leading.
+    # Skips the current invalid video.
     # Otherwise saves that information for if she does take lead.
     def invalidVideo(self, reason):
-        if reason and self.managing:
+        if reason:
             self.enqueueMsg(reason, irc=False, mumble=False)
             self.nextVideo()
 
@@ -1050,9 +1050,10 @@ class Naoko(object):
         
         time = data["currentTime"]
         if tag == "changeMedia":
+            if data["type"] in ["yt", "bt", "dm", "vi", "sc"]:
+                self.checkVideo(data["type"], data["id"])
+
             if self.managing:
-                if data["type"] in ["yt", "bt", "dm", "vi", "sc"]:
-                    self.checkVideo(data["type"], data["id"])
 
                 if self.doneInit:
                     self.enqueueMsg("Playing: %s" % (data["title"]), irc=False, mumble=False)
@@ -2427,6 +2428,7 @@ class Naoko(object):
                         self.state.dur = dur
                     #self.playerAction.set()
             return
+        self.flagVideo(site, vid, 0b1)
         self.invalidVideo("Invalid video.")
 
     # Validates a video before inserting it into the database.
