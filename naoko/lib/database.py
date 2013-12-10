@@ -483,7 +483,8 @@ class NaokoDB(object):
         """
         self.logger.debug("Inserting %s into videos", (site, vid, int(dur * 1000), title, 0))
         self.logger.debug("Inserting %s into video_stats", (site, vid, nick))
-        self.executeDML("INSERT OR IGNORE INTO videos VALUES(?, ?, ?, ?, ?)", (site, vid, int(dur * 1000), title, 0))
+        self.executeDML("INSERT OR IGNORE INTO videos VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                        (site, vid, int(dur * 1000), title, 0, None, None, None))
         self.executeDML("INSERT INTO video_stats VALUES(?, ?, ?)", (site, vid, nick))
         self.commit()
         self.unflagVideo(site, vid, 1)
