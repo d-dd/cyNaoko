@@ -262,6 +262,7 @@ class APIClient(object):
         try:
             con.request("GET", "/feeds/api/videos/%s?%s" % (vid, urlencode(params)))
             data = json.loads(con.getresponse().read())
+            self.logger.info(data)
         except Exception as e:
             # Many things can go wrong with an HTTP request or during JSON parsing
             self.logger.warning("Error retrieving Youtube API information.")

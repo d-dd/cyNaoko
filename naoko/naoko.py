@@ -2391,6 +2391,7 @@ class Naoko(object):
         self.dbclient.insertChat(*args, **kwargs)
 
     # Checks to see if the current video isn't invalid, blocked, or removed.
+    # Youtube API can sometimes take a few minutes to relfect privacy options.
     # Also updates the duration if necessary to prevent certain types of annoying attacks on the room.
     def _checkVideo(self, site, vid):
         url = vid
@@ -2428,8 +2429,10 @@ class Naoko(object):
                         self.state.dur = dur
                     #self.playerAction.set()
             return
-        self.flagVideo(site, vid, 0b1)
-        self.invalidVideo("Invalid video.")
+        self.flagVideo(site, vid, 0b1) # flag invalid video
+        uid = self.state.Id
+        self.deleteMedia(uid)
+        self.enqueueMsg("Deleted invalid video id:%s, uid:%s" % (vid, str(uid)))
 
     # Validates a video before inserting it into the database.
     # Will correct invalid durations and titles for videos.
