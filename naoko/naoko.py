@@ -1063,6 +1063,10 @@ class Naoko(object):
                 self.state.state = self._STATE_NORMAL_SWITCH
             elif self.state.state != self._STATE_NORMAL_SKIP:
                 self.state.state = self._STATE_FORCED_SWITCH
+            
+            # VocaDB calls
+            self.loadVdbData(data['type'], data['id'])
+
         else:
             self.state.state = self._STATE_PLAYING
         
@@ -1145,6 +1149,7 @@ class Naoko(object):
     # Stores the number of viewers, not just the number of named users
     def userCount(self, tag, data):
         self._storeUserCount(data)
+        self.usercount = data
 
     def remUser(self, tag, data):
         try:
@@ -2725,6 +2730,75 @@ class Naoko(object):
         self.unToss = package(self.send, "takeleader", self.sid)
         self.send("toss", sid)
     """
+    def loadVdbData(self, service, vidId):
+        # return unless there is someone else in the room (including anons)
+        if self.usercount == 1:
+            return
+        # retrieve VocaDB API JSON
+        data = self.sqlExecute(package(self._loadVdbData, service, vidId))
+    
+    def _loadVdbData(self, service, vidId):
+        # Search database for VocaDB information
+        self.logger.debug("Fetching VocaDB data from db, ID:%s, %s"
+                          % (vidId, service))
+        data = self.dbclient.getVdbInfo(service, vidId)
+        # when there's no matching video entry (video hasn't been written to db)
+        # This can happen when videos are added while Naoko is not in channel
+        # Also, when a video is added and is played immediately, data can be
+        # empty since Naoko had not had time to write.
+        if data == []:
+            self.info("No matching video found.")
+            self.emitJs(None)
+
+        # vocadb_id field is empty
+        if data[0][0] is None:
+            self.logger.info("vocadb_id field empty. Will attempt API call.")
+            self.vocaDbApi(service, vidId)
+
+    def vocaDbApi(self, service, vidId):
+        self.apiExecute(package(self._vocaDbApi, service, vidId))
+
+    def _vocaDbApi(self, service, vidId):
+        self.logger.debug("Requesting API from VocaDB")
+        vocadb_id, vocadb_data = self.apiclient.getVocaDbApi(service, vidId)
+        
+        if vocadb_id is None:
+            self.logger.info("VocaDB API lookup failed. Recording '0's")
+            self.storeVocaDb(service, vidId, 0, "0", self.selfUser.name)
+            self.emitJs(None)
+
+        elif vocadb_id:
+            self.logger.info("Received video info from VocaDB, recording.")
+            l = json.loads(vocadb_data)
+            vocadb_data = json.dumps(l)
+            info = (service, vidId, vocadb_id, vocadb_data, self.selfUser.name)
+            self.storeVocaDb(*info)
+            self.emitJs(info)
+
+    def storeVocaDb(self, site, vid, vocadb_id, vocadb_data, vocadb_rep):
+        self.sqlExecute(package(self._storeVocaDb, site, vid, vocadb_id,
+                                vocadb_data, vocadb_rep))
+
+    def _storeVocaDb(self, *args, **kwargs):
+        self.dbclient.updateVdbInfo(*args, **kwargs)
+
+    def emitJs(self, data):
+        # for now just enqueueMsg
+        if not self.doneInit:
+            return
+        
+        if not data:
+            self.enqueueMsg("Null.")
+
+        if data:
+            titles =  []
+            j = json.loads(data[3])
+            for name in j["Names"]:
+                titles.append(name["Value"])
+            titles = " / ".join(titles)
+            self.enqueueMsg(titles)
+
+
 
     def _getConfig(self):
         config = ConfigParser.RawConfigParser()

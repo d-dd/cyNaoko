@@ -699,6 +699,28 @@ class NaokoDB(object):
         sql = select_cls + group_cls
         return self.fetch(sql)
 
+    def updateVdbInfo(self, site, vid, vocadb_id, vocadb_data, vocadb_rep):
+        """
+        Store VocaDB API json to reduce calls to API.
+        Id = VocaDB's song ID, data = json, rep = person who obtained the
+        VocaDB id (usually Naoko)
+        """
+        voca = (vocadb_id, vocadb_data, vocadb_rep, site, vid)
+        self.executeDML(("UPDATE videos SET vocadb_id=?, vocadb_data=?, "
+                         "vocadb_rep=? WHERE type=? AND id=?"), voca)
+        self.commit()
+
+    def getVdbInfo(self, service, vidId):
+        """
+        Fetches vocadb_id, vocadb_data, vocadb_rep from corresponding
+        video row.
+        """
+        select_cls = "SELECT vocadb_id, vocadb_data, vocadb_rep FROM videos "
+        where_cls = "WHERE type = ? AND id = ?"
+        sql = select_cls + where_cls
+        binds = (service, vidId)
+        return self.fetch(sql, binds)
+
 
 # Run some tests if called directly
 # These probably don't work anymore

@@ -262,7 +262,6 @@ class APIClient(object):
         try:
             con.request("GET", "/feeds/api/videos/%s?%s" % (vid, urlencode(params)))
             data = json.loads(con.getresponse().read())
-            self.logger.info(data)
         except Exception as e:
             # Many things can go wrong with an HTTP request or during JSON parsing
             self.logger.warning("Error retrieving Youtube API information.")
@@ -405,6 +404,11 @@ class APIClient(object):
 
     def getVocaDbApi(self, service, vidId):
          """Returns vocadb id and data to the main thread"""
+         # for now return sample data for testing
+         vocadb_id = 43250
+         samp = '{"Names":[{"Language":"English","Value":"Dog Day Afternoon"}]}'
+         return vocadb_id, samp
+
          if service not in ("yt", "vm"): # only Youtube and Vimeo for now
              return None, None
          # First, call VocaDB API by Youtube ID
