@@ -1068,7 +1068,9 @@ class Naoko(object):
                 self.state.state = self._STATE_FORCED_SWITCH
             
             # VocaDB calls
-            self.loadVdbData(data['type'], data['id'])
+            # otherwise Naoko will get kicked trying to emit JS
+            if self.selfUser.rank >= 3:
+                self.loadVdbData(data['type'], data['id'])
 
         else:
             self.state.state = self._STATE_PLAYING
@@ -2736,7 +2738,7 @@ class Naoko(object):
 
     def vocadb(self, command, user, data):
         """CyTube chat command"""
-        if user.rank < 2:
+        if user.rank < 2 or self.selfUser.rank < 3:
             return
         # with no arguments, re-request the API data
         current = self.vidlist[self.state.current].vidinfo
