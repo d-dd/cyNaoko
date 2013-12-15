@@ -2766,7 +2766,7 @@ class Naoko(object):
 
         # no matching row in database
         if not data:
-            self.info("No matching video found.")
+            self.logger.info("No matching video found.")
             self.emitJs(None)
 
         # vocadb_id field is empty
@@ -2781,7 +2781,7 @@ class Naoko(object):
 
         # emitJS with data from database
         else:
-            data = (service, vidId, data[0][0], data[0][1])
+            data = (service, vidId, data[0][0], data[0][1], data[0][2])
             self.emitJs(data)
 
     def vocaDbApi(self, service, vidId):
@@ -2816,26 +2816,98 @@ class Naoko(object):
         self.logger.debug(data)
         if not self.doneInit:
             return
-        
+
+        non = ("$(\"#yukarin\").remove();$(\"#queue_align2\").prepend(\"<div "
+              "id='yukarin' class='well well-small'></br><a target='_blank'"
+              " button class='btn btn-mini btn-warning vdb_btn' "
+              "href='https://github.com/d-dd/cyNaoko/blob/master/README.md#"
+              "VocaDB'>?</a>     <a target='_blank' href='http://vocadb.net/'"
+              " button class='btn btn-mini btn-info vdb_btn'>VocaDB</a>"
+              '<div>");')
+
         if not data:
-            self.enqueueMsg("Null.")
+            js = non
 
         elif not data[2]:
-            self.enqueueMsg("Null.")
+            js = non
 
         else:
             try:
-                titles =  []
-                j = json.loads(data[3])
-                for name in j["Names"]:
-                    titles.append(name["Value"])
-                titles = " / ".join(titles)
-                self.enqueueMsg(titles)
-            except TypeError, e:
-                self.logger.error("Error parsing VocaDB JSON: %s" % e)
-            except ValueError, e:
-                self.logger.error("Error decoding VocaDB JSON: %s" % e)
+                vdbDict = json.loads(data[3])
+                titles = self._vdbTitles(vdbDict)
+                artists = self._vdbArtists(vdbDict)
+                js = [titles, "</br>", artists, " "]
+                js = "".join(js)
+                li = ['$("#yukarin").remove();' '$("#queue_align2").prepend(']
+                link = " <a href='http://vocadb.net/S/" + str(data[2])
+                link2 = "' target='blank' title='link by: " + data[4]
+                link3 = "' button class = 'btn btn-mini btn-info vdb_btn'>"
+                link4 = "VocaDB</a>"
+                li.extend(['"<div id=\'yukarin\' class=\'well well-small\'>',
+                          js, link, link2, link3, link4, '</div>");'])
+                js = ''.join(li)
+                
+            except (TypeError, ValueError, KeyError) as e:
+                self.logger.error("emitJS: Error parsing JSON:%s" % e)
+                js = non
 
+        self.send("setChannelJS", {"js": js})
+
+    def _vdbTitles(self, vdbDict):
+        """Returns formatted titles parsed from VDB data (dict)"""
+        titles = []
+        for name in vdbDict["Names"]:
+            titles.append(name["Value"])
+        titles = " / ".join(titles)
+        return titles
+
+    def _vdbArtists(self, vdbDict):
+        """Returns formatted artists parsed from VDB data (dict)"""
+        labels = ["OtherGroup", "Producer", "Lyricist", "Arranger", "Composer",
+                  "Instrumentalist", "Vocaloid", "UTAU",
+                  "OtherVoiceSynthesizer", "Vocalist", "OtherVocalist"]
+
+        alias = {"OtherVoiceSynthesizer": "Voice Synthesizer",
+                 "OtherGroup": "Group", "OtherVocalist": "Vocalist"}
+        di = {}
+        for artist in vdbDict["Artists"]:
+            name = artist["Name"].split(", ")
+            try:
+                roles = artist["Roles"].split(", ")
+            except AttributeError, e:
+                self.logger.error("API is in wrong format:%s" % e)
+                # there was an update to VocaDB JSON API where bitmask
+                # Roles were changed to named  Roles
+                return None
+            
+            if roles == ["Default"]:
+                try:
+                    roles = artist["Artist"]["ArtistType"].split(", ")
+                # sometimes the Artist field is null
+                except(TypeError):
+                    roles = ['null']
+            for i, role in enumerate(roles):
+                if di.get(role):
+                    di[role].append(name[i])
+                else:
+                    di[role] = name
+
+        li = []
+        for label in labels:
+            ca = []
+            if label in di: # make a list of categories
+                category = alias.get(label, label)
+                ca.extend(["<span class='vdbgray'>", category + "(s):</span>"])
+                na = []
+                for name in di[label]: # list of names for one category
+                    na.append(name)
+                ca.append(', '.join(na))
+                li.append(''.join(ca))
+        return '  '.join(li) # delimiter for each category
+
+
+
+        
 
 
     def _getConfig(self):
