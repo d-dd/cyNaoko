@@ -458,7 +458,7 @@ class NaokoDB(object):
         Flags:
 
         1 << 0  : Invalid video, may become valid in the future. Reset upon successful manual add.
-        1 << 1  : Manually blacklisted video.
+        1 << 1  : Manually omitted video.
         """
         self.logger.debug("Flagging %s:%s with flags %s", site, vid, bin(flags))
         self.executeDML("UPDATE videos SET flags=(flags | ?) WHERE type = ? AND id = ?", (flags, site, vid))
@@ -470,6 +470,16 @@ class NaokoDB(object):
         """
         self.executeDML("UPDATE videos SET flags=(flags & ?) WHERE type = ? AND id = ?", (~flags, site, vid))
         self.commit()
+
+    def getVideoFlag(self, site, vid):
+        """
+        Retrieves flag for video.
+        """
+        select_cls = "SELECT flags FROM videos "
+        where_cls = "WHERE type = ? AND id = ?"
+        sql = select_cls + where_cls
+        binds = (site, vid)
+        return self.fetch(sql, binds)
 
     def insertVideo(self, site, vid, title, dur, nick):
         """

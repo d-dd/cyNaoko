@@ -191,6 +191,9 @@ class Naoko(object):
         # Save init time for uptime calculation
         self.startTime = time.time()
 
+        # Wether current video is already omitted
+        self.alreadyOmitted = False
+        self.lastJs = ''
         self.channelPermissions = {}
         self.rankList = {}
         self.room_info = {}
@@ -744,7 +747,7 @@ class Naoko(object):
                         "updatePoll"        : self.ignore,
                         "voteskip"          : self.ignore,
                         "drinkCount"        : self.ignore,
-                        "channelCSSJS"      : self.ignore,
+                        "channelCSSJS"      : self.saveJsCss,
                         "setMotd"           : self.ignore,
                         "joinMessage"       : self.ignore,
                         "queueFail"         : self.ignore, # Might want to catch these if there's ever something cytube catches that Naoko doesn't
@@ -811,6 +814,8 @@ class Naoko(object):
                                 # Functions that require a database
                                 "addrandom"         : self.addRandom,
                                 "blacklist"         : self.blacklist,
+                                "omit"              : self.omit,
+                                "omitd"             : self.omitdel,
                                 "quote"             : self.quote,
                                 "saveplaylist"      : self.savePlaylist,
                                 "deleteplaylist"    : self.deletePlaylist,
@@ -1137,6 +1142,10 @@ class Naoko(object):
     def savePermissions(self, tag, data):
         self.logger.info('Saving Channel Permissions')
         self.channelPermissions = data
+
+    def saveJsCss(self, tag, data):
+        #self.lastJs = data["js"]
+        self.lastCss = data["css"]
 
     def login(self, tag, data):
         if not data["success"] or "error" in data:
@@ -1669,13 +1678,29 @@ class Naoko(object):
     def deletePlaylist(self, command, user, data):
         self.sqlExecute(package(self._deletePlaylist, data))
 
-    # Blacklists the currently playing video so Naoko will ignore it
-    def blacklist(self, command, user, data):
-        # Rather arbitrary requirement of rank 5
-        if user.rank < 5: return
+    # Omits the currently playing video so Naoko will ignore it
+    def omit(self, command, user, data):
+        # mods and up can omit
+        if user.rank < 2: return
+        if self.state.current == -1: return
+        if self.alreadyOmitted: return
+        target = self.vidlist[self.state.current].vidinfo
+        self.flagVideo(target.type, target.id, 0b10)
+        self.displayVideoFlag()
+        self.alreadyOmitted = True
+
+    # Same as omit, but also deletes the video
+    @hasPermission("DELETE")
+    def omitdel(self, command, user, data):
+        if user.rank < 2: return
         if self.state.current == -1: return
         target = self.vidlist[self.state.current].vidinfo
         self.flagVideo(target.type, target.id, 0b10)
+        self.deleteMedia(self.vidlist[self.state.current][3])
+        
+    def blacklist(self, command, user, data):
+        pass
+
 
     # Retrieve the latest bans for the specified user
     # REIMPLEMENT
@@ -2372,7 +2397,7 @@ class Naoko(object):
 
     # Marks a video with the specified flags.
     # 1 << 0    : Invalid video, may become valid in the future. Reset upon successful manual add.
-    # 1 << 1    : Manually blacklisted video.
+    # 1 << 1    : Manually omitted video.
     def flagVideo(self, site, vid, flags):
         self.sqlExecute(package(self._flagVideo, site, vid, flags))
 
@@ -2404,6 +2429,7 @@ class Naoko(object):
     # Youtube API can sometimes take a few minutes to relfect privacy options.
     # Also updates the duration if necessary to prevent certain types of annoying attacks on the room.
     def _checkVideo(self, site, vid):
+        self.loadVideoFlag(site, vid)
         url = vid
         if site == "sc":
             vid = self.apiclient.resolveSoundcloud(vid)
@@ -2444,6 +2470,25 @@ class Naoko(object):
         self.deleteMedia(uid)
         self.enqueueMsg("Deleted invalid video id:%s, uid:%s" % (vid, str(uid)))
 
+    def loadVideoFlag(self, site, vid):
+        """Checks to see if a video has a omit/blacklist flag and process
+           accordingly."""
+        # retrieve video flag from database
+        self.sqlExecute(package(self._loadVideoFlag, site, vid))
+    
+    def _loadVideoFlag(self, site, vid):
+        self.alreadyOmitted = False
+        self.logger.debug("Fetching video flag data from db, ID:%s, %s"
+                          % (vid, site))
+        flag = self.dbclient.getVideoFlag(site, vid)
+        self.currentVideoFlag = flag
+        try:
+            flagInt = flag[0][0]
+        except(IndexError):
+            flagInt = -1
+        if flagInt == 0b10:
+            self.alreadyOmitted = True
+            self.displayVideoFlag()
     # Validates a video before inserting it into the database.
     # Will correct invalid durations and titles for videos.
     # This makes SQL inserts dependent on the external API.
@@ -2819,19 +2864,18 @@ class Naoko(object):
         if not self.doneInit:
             return
 
-        non = ("$(\"#yukarin\").remove();$(\"#queue_align2\").prepend(\"<div "
-              "id='yukarin' class='well well-small'></br><a target='_blank'"
-              " button class='btn btn-mini btn-warning vdb_btn' "
-              "href='https://github.com/d-dd/cyNaoko/blob/master/README.md#"
-              "VocaDB'>?</a>     <a target='_blank' href='http://vocadb.net/'"
-              " button class='btn btn-mini btn-info vdb_btn'>VocaDB</a>"
-              '<div>");')
-
+        vdblink = "http://vocadb.net/"
+        non = ['$("#yukarin").remove();$("#queue_align2").prepend("<div id=', 
+               "'yukarin' class='well well-small'></br><a target='_blank'",
+               " button class='btn btn-mini btn-warning vdb_btn' href='",
+               VDB_README_URL, "'>?</a>     <a target='_blank' href='", vdblink,
+               "' button class='btn btn-mini btn-info vdb_btn'>VocaDB</a>",
+               '<div>");']
         if not data:
-            js = non
+            js = ''.join(non)
 
         elif not data[2]:
-            js = non
+            js = ''.join(non)
 
         else:
             try:
@@ -2853,6 +2897,7 @@ class Naoko(object):
                 self.logger.error("emitJS: Error parsing JSON:%s" % e)
                 js = non
 
+        self.lastJs = js
         self.send("setChannelJS", {"js": js})
 
     def _vdbTitles(self, vdbDict):
@@ -2907,10 +2952,16 @@ class Naoko(object):
                 li.append(''.join(ca))
         return '  '.join(li) # delimiter for each category
 
-
-
-        
-
+    def displayVideoFlag(self):
+        """Adds flag indicator next to video title (#currenttitle)"""
+        self.logger.debug("Adding Flag display.")
+        if not self.doneInit:
+            return
+        js = [self.lastJs]
+        js.append('$("#currenttitle").prepend("<span class=')
+        js.append("'label' title='Omitted video'>!<span>  \");")
+        js = ''.join(js)
+        self.send("setChannelJS", {"js": js})
 
     def _getConfig(self):
         config = ConfigParser.RawConfigParser()

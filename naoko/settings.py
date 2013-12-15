@@ -28,3 +28,6 @@ REQUIRED_COUNTRIES = set(["CA", "US"])
 
 # Custom user agent for VocaDB API requests, should be more descriptive
 USER_AGENT = {"User-Agent": "cyNaoko"}
+
+# Link to VocaDB Help File
+VDB_README_URL = "https://github.com/d-dd/cyNaoko/blob/master/README.md#VocaDB"
