@@ -477,7 +477,7 @@ class APIClient(object):
         if matchObj:
             return matchObj.group()
         else:
-            logger.info("_parseDesc: no match found")
+            self.logger.info("_parseDesc: no match found")
             return None
 
 
