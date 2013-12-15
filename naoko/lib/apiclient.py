@@ -5,6 +5,8 @@ import logging
 import subprocess
 import time
 import re
+import urllib2
+
 from ssl import SSLError
 from urllib import urlencode, urlopen
 from httplib import HTTPConnection, HTTPSConnection
@@ -404,43 +406,50 @@ class APIClient(object):
 
     def getVocaDbApi(self, service, vidId):
          """Returns vocadb id and data to the main thread"""
-         # for now return sample data for testing
-         vocadb_id = 43250
-         samp = '{"Names":[{"Language":"English","Value":"Dog Day Afternoon"}]}'
-         return vocadb_id, samp
-
          if service not in ("yt", "vm"): # only Youtube and Vimeo for now
              return None, None
          # First, call VocaDB API by Youtube ID
          if service == "yt":
-             vocadb_id, voca_data = self._getVocaDbApi(service, vidId)
+             vocadb_id, vocadb_data = self._getVocaDbApi("YouTube", vidId)
              if vocadb_id:
-                 self.logger.info("Successfully obtained APi via Youtube ID.")
-                 return vocadb_id, voca_data
+                 self.logger.info("Successfully obtained API via Youtube ID.")
+                 return vocadb_id, vocadb_data
+
          # if Youtube ID lookup fails, parse Youtube description for smid
          nicoId = self._getNicoId(service, vidId)
          if nicoId:
-             pass
+             self.logger.debug("Requesting API with Nico ID")
+             vocadb_id, vocadb_data = self._getVocaDbApi("NicoNicoDouga", nicoId)
+             return vocadb_id, vocadb_data
+         return None, None
 
     def _getVocaDbApi(self, service, vidId):
-        
         url = ["http://vocadb.net/Api/v1/Song/ByPV"]
         opts = "&lang=romaji&IncludeAlbums=False&includeTags=False"
         url.extend(["?pvID=", vidId, "&service=", service, opts])
         url = ''.join(url)
-        self.logger.debug("Requesting data from VocaDB: %s" % url)
-
-        j = self._getjsonApi(url, "VocaDB")
+        self.logger.debug("VDB API: Requesting data from VocaDB: %s" % url)
+        vdbJson = self._getJsonApi(url, "VocaDB")
+        try:
+            vdbDict = json.loads(vdbJson)
+        except TypeError, e:
+            self.logger.error("Could not decode JSON:%s" % e)
+            return None, None
+        try:
+            return vdbDict["Id"], vdbJson
+        except TypeError, e:
+            self.logger.error("Could not parse JSON:%s" % e)
+            return None, None
         
     def _getNicoId(self, service, vidId):
         if service == "yt":
-            url = ''.join(["https://gdata.youtube.com/feeds/api/videos/", vidID,
+            url = ''.join(["https://gdata.youtube.com/feeds/api/videos/", vidId,
                    "?v=2&fields=media:group(media:description)&alt=json"])
             jsonDesc = self._getJsonApi(url, "Youtube")
             if jsonDesc:
                 try:
-                    di = json.loads(js)
-                    desc = di["entry"]["media$group"]["media$description"]["$t"]
+                    diDesc = json.loads(jsonDesc)
+                    desc = diDesc["entry"]["media$group"]["media$description"]["$t"]
                 except (KeyError, TypeError) as e:
                     logger.error("Error parsing json: %s" % repr(e))
                     return None

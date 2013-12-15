@@ -819,6 +819,9 @@ class Naoko(object):
                                 "translate"         : self.translate,
                                 "wolfram"           : self.wolfram,
                                 "anagram"           : self.anagram,
+                                # Functions that require a database and query
+                                # an external API
+                                "vocadb"            : self.vocadb,
                                 # Functions for controlling Naoko that do not affect the room or permissions
                                 "restart"           : self.restart,
                                 "mute"              : self.mute,
@@ -2730,14 +2733,28 @@ class Naoko(object):
         self.unToss = package(self.send, "takeleader", self.sid)
         self.send("toss", sid)
     """
-    def loadVdbData(self, service, vidId):
+
+    def vocadb(self, command, user, data):
+        """CyTube chat command"""
+        if user.rank < 2:
+            return
+        # with no arguments, re-request the API data
+        current = self.vidlist[self.state.current].vidinfo
+        self.loadVdbData(current.type, current.id, reRequest=True)
+
+    def loadVdbData(self, service, vidId, reRequest=False):
+        """Loads VocaDB data from the database.
+        When reRequest is True, then it will always call the API even if there
+        is already data.
+        """
         # return unless there is someone else in the room (including anons)
         if self.usercount == 1:
             return
         # retrieve VocaDB API JSON
-        data = self.sqlExecute(package(self._loadVdbData, service, vidId))
+        self.sqlExecute(package(self._loadVdbData, service, vidId,
+                                       reRequest))
     
-    def _loadVdbData(self, service, vidId):
+    def _loadVdbData(self, service, vidId, reRequest):
         # Search database for VocaDB information
         self.logger.debug("Fetching VocaDB data from db, ID:%s, %s"
                           % (vidId, service))
@@ -2746,14 +2763,26 @@ class Naoko(object):
         # This can happen when videos are added while Naoko is not in channel
         # Also, when a video is added and is played immediately, data can be
         # empty since Naoko had not had time to write.
-        if data == []:
+
+        # no matching row in database
+        if not data:
             self.info("No matching video found.")
             self.emitJs(None)
 
         # vocadb_id field is empty
-        if data[0][0] is None:
+        elif data[0][0] is None:
             self.logger.info("vocadb_id field empty. Will attempt API call.")
             self.vocaDbApi(service, vidId)
+
+        # rerequest
+        elif reRequest:
+            self.logger.info("reRequest True. Will attempt API call.")
+            self.vocaDbApi(service, vidId)
+
+        # emitJS with data from database
+        else:
+            data = (service, vidId, data[0][0], data[0][1])
+            self.emitJs(data)
 
     def vocaDbApi(self, service, vidId):
         self.apiExecute(package(self._vocaDbApi, service, vidId))
@@ -2784,19 +2813,28 @@ class Naoko(object):
 
     def emitJs(self, data):
         # for now just enqueueMsg
+        self.logger.debug(data)
         if not self.doneInit:
             return
         
         if not data:
             self.enqueueMsg("Null.")
 
-        if data:
-            titles =  []
-            j = json.loads(data[3])
-            for name in j["Names"]:
-                titles.append(name["Value"])
-            titles = " / ".join(titles)
-            self.enqueueMsg(titles)
+        elif not data[2]:
+            self.enqueueMsg("Null.")
+
+        else:
+            try:
+                titles =  []
+                j = json.loads(data[3])
+                for name in j["Names"]:
+                    titles.append(name["Value"])
+                titles = " / ".join(titles)
+                self.enqueueMsg(titles)
+            except TypeError, e:
+                self.logger.error("Error parsing VocaDB JSON: %s" % e)
+            except ValueError, e:
+                self.logger.error("Error decoding VocaDB JSON: %s" % e)
 
 
 
