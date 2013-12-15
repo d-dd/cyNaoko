@@ -2803,6 +2803,8 @@ class Naoko(object):
     
     def _loadVdbData(self, service, vidId, reRequest):
         # Search database for VocaDB information
+        if service == "vi":
+            service = "vm"
         self.logger.debug("Fetching VocaDB data from db, ID:%s, %s"
                           % (vidId, service))
         data = self.dbclient.getVdbInfo(service, vidId)

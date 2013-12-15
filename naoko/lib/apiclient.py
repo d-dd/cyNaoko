@@ -455,6 +455,20 @@ class APIClient(object):
                     return None
                 nicoID = self._parseDesc(desc)
                 return nicoID
+        if service == "vm":
+            url = ["http://vimeo.com/api/v2/video/", vidId, ".json"]
+            url = ''.join(url)
+            jsonDesc = self._getJsonApi(url, "Vimeo")
+            if jsonDesc:
+                try:
+                    diDesc = json.loads(jsonDesc)
+                    desc = diDesc[0]["description"]
+                except (KeyError, TypeError) as e:
+                    self.logger.error("Error parsing vimeo JSON:%s" % repr(e))
+                    return None
+                nicoID = self._parseDesc(desc)
+                return nicoID
+
         return None
 
     def _getJsonApi(self, url, provider):
