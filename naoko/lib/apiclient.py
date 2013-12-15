@@ -451,7 +451,7 @@ class APIClient(object):
                     diDesc = json.loads(jsonDesc)
                     desc = diDesc["entry"]["media$group"]["media$description"]["$t"]
                 except (KeyError, TypeError) as e:
-                    logger.error("Error parsing json: %s" % repr(e))
+                    self.logger.error("Error parsing json: %s" % repr(e))
                     return None
                 nicoID = self._parseDesc(desc)
                 return nicoID
