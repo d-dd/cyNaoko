@@ -30,6 +30,9 @@ from lib.sioclient import SocketIOClient
 from lib.ircclient import IRCClient
 from lib.apiclient import APIClient
 
+from HTMLParser import HTMLParser
+import urlparse
+
 # Cleverbot doesn't like publicly posting code to access it. 
 try:
     from lib.cbclient import CleverbotClient
@@ -48,6 +51,22 @@ def package(fn, *args, **kwargs):
     def action():
         fn(*args, **kwargs)
     return action
+
+class ThreadMotdParser(HTMLParser):
+    def __init__(self, searchId):
+        HTMLParser.__init__(self)
+        self.searchId = searchId
+        self.link = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            d = dict(attrs)
+            anchorId = d.get("id", None)
+            if anchorId == self.searchId:
+                try:
+                    self.link = d["href"]
+                except(KeyError):
+                    self.logger.warning("ThreadMotdParse 'href' tag missing.")
 
 # Decorator for simplicity of use
 # Prevents users without adequate permissions from using commands.
@@ -194,6 +213,7 @@ class Naoko(object):
         # Wether current video is already omitted
         self.alreadyOmitted = False
         self.lastJs = ''
+        self.lastMotd = ''
         self.channelPermissions = {}
         self.rankList = {}
         self.room_info = {}
@@ -748,7 +768,7 @@ class Naoko(object):
                         "voteskip"          : self.ignore,
                         "drinkCount"        : self.ignore,
                         "channelCSSJS"      : self.saveJsCss,
-                        "setMotd"           : self.ignore,
+                        "setMotd"           : self.saveMotd,
                         "joinMessage"       : self.ignore,
                         "queueFail"         : self.ignore, # Might want to catch these if there's ever something cytube catches that Naoko doesn't
                         "mediaUpdate"       : self.mediaUpdate,
@@ -811,6 +831,7 @@ class Naoko(object):
                                 "greet"             : self.greet,
                                 "bye"               : self.bye,
                                 "uptime"            : self.uptime,
+                                "thread"            : self.updateMotdThread,
                                 # Functions that require a database
                                 "addrandom"         : self.addRandom,
                                 "blacklist"         : self.blacklist,
@@ -1146,6 +1167,10 @@ class Naoko(object):
     def saveJsCss(self, tag, data):
         #self.lastJs = data["js"]
         self.lastCss = data["css"]
+
+    def saveMotd(self, tag, data):
+        self.lastMotd = data["motd"]
+        self.logger.debug("Saving MOTD.")
 
     def login(self, tag, data):
         if not data["success"] or "error" in data:
@@ -3015,6 +3040,28 @@ class Naoko(object):
         js.extend([pre, pre2, pre3])
         js = ''.join(js)
         self.send("setChannelJS", {"js": js})
+
+    def updateMotdThread(self, command, user, data):
+        if user.rank < 2:
+            return
+        p = ThreadMotdParser("threadref")
+        p.feed(self.lastMotd)
+        link = p.link
+        if not data:
+            self.enqueueMsg("The thread link in the MOTD is %s ." % link)
+        elif data:
+            parts = urlparse.urlsplit(data)
+            if not parts.scheme or not parts.netloc:
+                self.enqueueMsg("Invalid url.")
+            elif link is None:
+                self.logger.warning("Could not match anchor/id in MOTD")
+                self.enqueueMsg(("Error: Check the MOTD to make sure "
+                                 "an anchor with id 'threadref' and a "
+                                 "href exist."))
+            else:
+                newMotd = self.lastMotd.replace(link, data)
+                self.logger.debug("Setting MOTD with thread url %s ." % data)
+                self.send("setMotd", {"motd": newMotd})
 
     def _getConfig(self):
         config = ConfigParser.RawConfigParser()
