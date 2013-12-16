@@ -2483,7 +2483,7 @@ class Naoko(object):
                         self.state.dur = DEFAULT_WAIT
                     else:
                         self.logger.debug("Duration mismatch: %d expected, %.3f actual." % (self.state.dur, dur))
-                        if abs(self.state.dur - dur) >= 1:
+                        if abs(self.state.dur - dur) >= 2:
                             self.logger.debug("Large mismatch detected, clearing Cytube cache.")
                             self.send("uncache", {"id" : vid})
                             self.invalidVideo("Duration Mismatch")
