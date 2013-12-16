@@ -430,6 +430,9 @@ class APIClient(object):
         url = ''.join(url)
         self.logger.debug("VDB API: Requesting data from VocaDB: %s" % url)
         vdbJson = self._getJsonApi(url, "VocaDB")
+        return self._verifyVdbJson(vdbJson)
+
+    def _verifyVdbJson(self, vdbJson):
         try:
             vdbDict = json.loads(vdbJson)
         except TypeError, e:
@@ -441,6 +444,16 @@ class APIClient(object):
             self.logger.error("Could not parse JSON:%s" % e)
             return None, None
         
+    def getVdbById(self, service, vidId, vocadb_id, vocadb_rep):
+        url = ["http://vocadb.net/Api/v1/Song/Details/"]
+        options = "?lang=romaji&IncludeAlbums=False&IncludeTags=False"
+        url.extend([vocadb_id, options])
+        url = ''.join(url)
+        self.logger.debug("VOCADB API: Requesting data from VocaDB: %s" % url)
+        vdbJson = self._getJsonApi(url, "VocaDB")
+        return self._verifyVdbJson(vdbJson)
+
+
     def _getNicoId(self, service, vidId):
         if service == "yt":
             url = ''.join(["https://gdata.youtube.com/feeds/api/videos/", vidId,

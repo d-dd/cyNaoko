@@ -2478,6 +2478,8 @@ class Naoko(object):
     
     def _loadVideoFlag(self, site, vid):
         self.alreadyOmitted = False
+        if site == "vi":
+            site = "vm"
         self.logger.debug("Fetching video flag data from db, ID:%s, %s"
                           % (vid, site))
         flag = self.dbclient.getVideoFlag(site, vid)
@@ -2786,8 +2788,41 @@ class Naoko(object):
         if user.rank < 2 or self.selfUser.rank < 3:
             return
         # with no arguments, re-request the API data
-        current = self.vidlist[self.state.current].vidinfo
-        self.loadVdbData(current.type, current.id, reRequest=True)
+        if not data:
+            current = self.vidlist[self.state.current].vidinfo
+            self.loadVdbData(current.type, current.id, reRequest=True)
+        elif data:
+            try:
+                int(data)
+            except ValueError:
+                self.logger.warning("Invalid VocaDb input by %s." % user.name)
+                return
+            vocadb_id = data
+            vocadb_rep = user.name
+            target = self.vidlist[self.state.current].vidinfo
+            service = target.type
+            vidId = target.id
+
+            # vocaDB id 0 means 'delete' the information
+            if int(data) == 0:
+                self.storeVocaDb(service, vidId, 0, "0", vocadb_rep)
+                self.emitJs(None)
+                return
+
+            self.apiExecute(package(self._vocaDbById, service, vidId,
+                                    vocadb_id, vocadb_rep))
+
+    def _vocaDbById(self, service, vidId, vocadb_id, vocadb_rep):
+        vocadb_id, vdbJson = self.apiclient.getVdbById(service, vidId,
+                                                       vocadb_id, vocadb_rep)
+        if vdbJson:
+            l = json.loads(vdbJson)
+            vocadb_data = json.dumps(l)
+            self.storeVocaDb(service, vidId, vocadb_id, vocadb_data, vocadb_rep)
+            self.emitJs((service, vidId, vocadb_id, vocadb_data, vocadb_rep))
+        else:
+            self.logger.warning("Something went wrong _vocaDbById")
+
 
     def loadVdbData(self, service, vidId, reRequest=False):
         """Loads VocaDB data from the database.
@@ -2837,7 +2872,6 @@ class Naoko(object):
         self.apiExecute(package(self._vocaDbApi, service, vidId))
 
     def _vocaDbApi(self, service, vidId):
-        self.logger.debug("Requesting API from VocaDB")
         vocadb_id, vocadb_data = self.apiclient.getVocaDbApi(service, vidId)
         
         if vocadb_id is None:
