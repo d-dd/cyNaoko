@@ -3035,7 +3035,7 @@ class Naoko(object):
         self.logger.debug("Adding non-db display warning")
         js = [self.lastJs]
         pre = '$("#currenttitle").prepend("<span class='
-        pre2 = "'label label-important' title='Not in database"
+        pre2 = "'label label-important' title='Not in database. "
         pre3 = "Please requeue the video.'>!!</span>\");"
         js.extend([pre, pre2, pre3])
         js = ''.join(js)
