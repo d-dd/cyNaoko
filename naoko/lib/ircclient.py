@@ -58,7 +58,11 @@ class IRCClient(object):
         self.send("PRIVMSG " + self.channel + " :" + msg + "\n")
 
     def recvMessage(self):
-        frame = self.sock.recv(4096)
+        try: # This seems to help
+            frame = self.sock.recv(4096)
+        except:
+            frame = "timeout"
+            self.logger.error("IRC timeout")
         if len(frame) == 0:
             raise Exception("IRC Socket closed")
         frame = frame.strip("\n\r")
