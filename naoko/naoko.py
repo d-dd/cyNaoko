@@ -2484,6 +2484,10 @@ class Naoko(object):
                           % (vid, site))
         flag = self.dbclient.getVideoFlag(site, vid)
         self.currentVideoFlag = flag
+        # Video not in database
+        if flag == []:
+            self.displayNoneFlag()
+
         try:
             flagInt = flag[0][0]
         except(IndexError):
@@ -2996,6 +3000,19 @@ class Naoko(object):
         js = [self.lastJs]
         js.append('$("#currenttitle").prepend("<span class=')
         js.append("'label' title='Omitted video'>!<span>  \");")
+        js = ''.join(js)
+        self.send("setChannelJS", {"js": js})
+
+    def displayNoneFlag(self):
+        """Adds visual indicator next to video title (#currenttitle)"""
+        if not self.doneInit:
+            return
+        self.logger.debug("Adding non-db display warning")
+        js = [self.lastJs]
+        pre = '$("#currenttitle").prepend("<span class='
+        pre2 = "'label label-important' title='Not in database"
+        pre3 = "Please requeue the video.'>!!</span>\");"
+        js.extend([pre, pre2, pre3])
         js = ''.join(js)
         self.send("setChannelJS", {"js": js})
 
