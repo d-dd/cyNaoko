@@ -2999,10 +2999,13 @@ class Naoko(object):
                 except(TypeError):
                     roles = ['null']
             for i, role in enumerate(roles):
-                if di.get(role):
-                    di[role].append(name[i])
-                else:
-                    di[role] = name
+                try:
+                    if di.get(role):
+                        di[role].append(name[0])
+                    else:
+                        di[role] = name
+                except (KeyError, IndexError) as e:
+                    self.logger.error("Error parsing JSON:%s" % e)
 
         li = []
         for label in labels:
