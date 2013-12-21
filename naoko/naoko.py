@@ -1251,13 +1251,15 @@ class Naoko(object):
         user = self.userlist[data["username"]]
         msg = self._fixChat(data["msg"])
 
-        self.chat_logger.info("%s: %r" , user.name, msg)
-        if not user.name == self.name and self.doneInit:
-            self.enqueueMsg(("(" + user.name + ") " + msg), st=False)
-        
         # Only interpret regular messages as commands
         if not data["meta"].get("addClass"):
             self.chatCommand(user, msg)
+        self.chat_logger.info("%s: %r" , user.name, msg)
+
+        if not user.name == self.name and self.doneInit:
+            if msg.startswith("$omit"): return
+            self.enqueueMsg(("(" + user.name + ") " + msg), st=False)
+        
         
         # Don't log messages from IRC, may result in a few unlogged messages
         if user.name != self.name or not msg or msg[0] != '(':
