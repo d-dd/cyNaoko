@@ -500,7 +500,7 @@ class APIClient(object):
         return None
 
     def _parseDesc(self, desc):
-        matchObj = re.search(r"sm[0-9]{8}|nm[0-9]{8}", desc)
+        matchObj = re.search(r"sm[0-9]{7,8}|nm[0-9]{7,8}", desc)
         if matchObj:
             return matchObj.group()
         else:
