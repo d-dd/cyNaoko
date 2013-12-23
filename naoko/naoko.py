@@ -1141,7 +1141,7 @@ class Naoko(object):
         for i, v in enumerate(data):
             # Don't add the entire playlist to the database
             # It's also unsafe to delete any videos detected as invalid
-            self._addVideo(v, i, False)
+            self._addVideo(v, i, False, playlist=True)
         if len(self.vidlist) == 0:
             self.nextVideo()
 
@@ -2525,7 +2525,11 @@ class Naoko(object):
     # Validates a video before inserting it into the database.
     # Will correct invalid durations and titles for videos.
     # This makes SQL inserts dependent on the external API.
-    def _validateAddVideo(self, v, sql, idx):
+    def _validateAddVideo(self, v, sql, idx, playlist):
+        # If coming from playlist frame, skip since checking every video on
+        # the playlist can take a very long time and make apiclient unavailable
+        # for other commands
+        if playlist: return
         # Don't insert videos added by Naoko.
         # We can also assume any video added by Naoko has passed her own checks
         if v.queueby == self.name: return
@@ -2685,7 +2689,7 @@ class Naoko(object):
            self.flagVideo(site, vid, 1)
         
     # Add the video described by v_dict
-    def _addVideo(self, v_dict, idx, sql=True):
+    def _addVideo(self, v_dict, idx, sql=True, playlist=False):
         if self.stthread != threading.currentThread():
             raise Exception("_addVideo should not be called outside the Synchtube thread")
 
@@ -2741,7 +2745,7 @@ class Naoko(object):
         if self.state.current == -1 and vid.uid == self.state.Id:
             self.state.current = idx
 
-        self.apiExecute(package(self._validateAddVideo, vid, sql, idx))
+        self.apiExecute(package(self._validateAddVideo, vid, sql, idx, playlist))
         
     def _removeVideo(self, uid):
         if self.stthread != threading.currentThread():
