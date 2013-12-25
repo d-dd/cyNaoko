@@ -3018,10 +3018,13 @@ class Naoko(object):
             ca = []
             if label in di: # make a list of categories
                 category = alias.get(label, label)
-                ca.extend(["<span class='vdbgray'>", category + "(s):</span>"])
                 na = []
                 for name in di[label]: # list of names for one category
                     na.append(name)
+                suffix = ":</span>"
+                if category != "UTAU" and len(na) > 1:
+                    suffix = "s:</span>"
+                ca.extend(["<span class='vdbgray'>", category + suffix])
                 ca.append(', '.join(na))
                 li.append(''.join(ca))
         return '  '.join(li) # delimiter for each category
