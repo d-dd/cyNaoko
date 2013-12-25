@@ -2977,6 +2977,9 @@ class Naoko(object):
         for name in vdbDict["Names"]:
             titles.append(name["Value"])
         titles = " / ".join(titles)
+        # escape " and '
+        titles = titles.replace('"', r'\"')
+        titles = titles.replace("'", r"\'")
         return titles
 
     def _vdbArtists(self, vdbDict):
@@ -3027,7 +3030,10 @@ class Naoko(object):
                 ca.extend(["<span class='vdbgray'>", category, suffix])
                 ca.append(', '.join(na))
                 li.append(''.join(ca))
-        return '  '.join(li) # delimiter for each category
+        artists =  '  '.join(li) # delimiter for each category
+        artists = artists.replace('"', r'\"')
+        artists = artists.replace("'",  r"\'")
+        return artists
 
     def displayVideoFlag(self):
         """Adds flag indicator next to video title (#currenttitle)"""
