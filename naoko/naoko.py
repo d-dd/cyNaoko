@@ -3024,7 +3024,7 @@ class Naoko(object):
                 suffix = ":</span>"
                 if category != "UTAU" and len(na) > 1:
                     suffix = "s:</span>"
-                ca.extend(["<span class='vdbgray'>", category + suffix])
+                ca.extend(["<span class='vdbgray'>", category, suffix])
                 ca.append(', '.join(na))
                 li.append(''.join(ca))
         return '  '.join(li) # delimiter for each category
