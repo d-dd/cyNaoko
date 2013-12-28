@@ -2822,9 +2822,9 @@ class Naoko(object):
     """
     def vocaDbToggle(self, command, user, data):
         if user.rank < 2: return
-        self.vocadbState = not self.vocaDbState
+        self.vocaDbState = not self.vocaDbState
         self.logger.debug("Toggled self.vocaDbState to %s" % self.vocaDbState)
-        self.enqueueMsg("Vocadb functions on: %s" % self.vocadbState)
+        self.enqueueMsg("Vocadb functions on: %s" % self.vocaDbState)
 
     def vocadb(self, command, user, data):
         """CyTube chat command"""
