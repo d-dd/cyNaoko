@@ -210,6 +210,8 @@ class Naoko(object):
         # Save init time for uptime calculation
         self.startTime = time.time()
 
+        # VocaDB display is on by default
+        self.vocaDbState = True
         # Wether current video is already omitted
         self.alreadyOmitted = False
         self.lastJs = ''
@@ -849,6 +851,7 @@ class Naoko(object):
                                 # an external API
                                 "vocadb"            : self.vocadb,
                                 # Functions for controlling Naoko that do not affect the room or permissions
+                                "vocadbtoggle"      : self.vocaDbToggle,
                                 "restart"           : self.restart,
                                 "mute"              : self.mute,
                                 "unmute"            : self.unmute,
@@ -1095,7 +1098,7 @@ class Naoko(object):
             
             # VocaDB calls
             # otherwise Naoko will get kicked trying to emit JS
-            if self.selfUser.rank >= 3:
+            if self.selfUser.rank >= 3 and self.vocaDbState:
                 self.loadVdbData(data['type'], data['id'])
 
         else:
@@ -2817,10 +2820,15 @@ class Naoko(object):
         self.unToss = package(self.send, "takeleader", self.sid)
         self.send("toss", sid)
     """
+    def vocaDbToggle(self, command, user, data):
+        if user.rank < 2: return
+        self.vocadbState = not self.vocaDbState
+        self.logger.debug("Toggled self.vocaDbState to %s" % self.vocaDbState)
+        self.enqueueMsg("Vocadb functions on: %s" % self.vocadbState)
 
     def vocadb(self, command, user, data):
         """CyTube chat command"""
-        if user.rank < 2 or self.selfUser.rank < 3:
+        if user.rank < 2 or self.selfUser.rank < 3 or not self.vocaDbState:
             return
         # with no arguments, re-request the API data
         if not data:
