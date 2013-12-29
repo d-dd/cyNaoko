@@ -500,11 +500,11 @@ class APIClient(object):
         return None
 
     def _parseDesc(self, desc):
-        matchObj = re.search(r"sm[0-9]{7,8}|nm[0-9]{7,8}", desc)
+        matchObj = re.search(r"sm[0-9]{6,9}|nm[0-9]{6,9}", desc)
         if matchObj:
             return matchObj.group()
+        matchObj = re.search(r"(nicovideo.jp/watch/)(\d{6,12})", desc)
+        if matchObj:
+            return matchObj.group(2)
         else:
             self.logger.info("_parseDesc: no match found")
-            return None
-
-
