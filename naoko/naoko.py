@@ -1253,16 +1253,15 @@ class Naoko(object):
 
         user = self.userlist[data["username"]]
         msg = self._fixChat(data["msg"])
+        filtered = self._filterChat(msg)
+
+        self.chat_logger.info("%s: %r" , user.name, msg)
+        if not user.name == self.name and self.doneInit and not filtered:
+            self.enqueueMsg(("(" + user.name + ") " + msg), st=False)
 
         # Only interpret regular messages as commands
         if not data["meta"].get("addClass"):
             self.chatCommand(user, msg)
-        self.chat_logger.info("%s: %r" , user.name, msg)
-
-        if not user.name == self.name and self.doneInit:
-            if msg.startswith("$omit"): return
-            self.enqueueMsg(("(" + user.name + ") " + msg), st=False)
-        
         
         # Don't log messages from IRC, may result in a few unlogged messages
         if user.name != self.name or not msg or msg[0] != '(':
@@ -2361,6 +2360,13 @@ class Naoko(object):
         output = output.replace("&amp;", "&")
 
         return output
+
+    # Filter chat from Cytube so certain Cytube commands don't get sent to IRC.
+    # This is just so IRC isn't flooded with unnecessary messages.
+    def _filterChat(self, msg):
+        filters = ("$omit", "$vocadb")
+        return msg.startswith(filters)
+
 
     # The following private API methods are fairly low level and work with
     # synchtube sid's (session ids) or raw data arrays. They will usually
