@@ -1844,6 +1844,8 @@ class Naoko(object):
             msg += "Not "
         msg += "Muted, Hybrid Mods "
         msg += "Enabled" if self.hybridModStatus else "Disabled"
+        msg += ", VocaDB functions "
+        msg += "Enabled" if self.vocaDbState else "Disabled"
         msg += ", Automatic Leading "
         msg += "Enabled" if self.autoLead else "Disabled"
         msg += ", Automatic Skip Mode: %s" % (self.autoSkip)
