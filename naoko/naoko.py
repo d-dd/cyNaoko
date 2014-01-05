@@ -18,7 +18,7 @@ import struct
 import threading
 import re
 from urllib2 import Request, urlopen
-from collections import namedtuple, deque
+from collections import namedtuple, deque, Mapping
 import ConfigParser
 from datetime import datetime, timedelta
 
@@ -67,6 +67,27 @@ class ThreadMotdParser(HTMLParser):
                     self.link = d["href"]
                 except(KeyError):
                     self.logger.warning("ThreadMotdParse 'href' tag missing.")
+
+class CaseInsensitiveDict(Mapping):
+    """Dictionary with case insensitive keys"""
+    def __init__(self, d):
+        self._d = d
+        self._s = dict((k.lower(), k) for k in d)
+
+    def __contains__(self, k):
+        return k.lower() in self._s
+    
+    def __len__(self):
+        return len(self._s)
+
+    def __iter__(self):
+        return iter(self._s)
+
+    def __getitem__(self, k):
+        return self._d[self._s[k.lower()]]
+
+    def actual_key_case(self, k):
+        return self._s.get(k.lower())
 
 # Decorator for simplicity of use
 # Prevents users without adequate permissions from using commands.
@@ -2497,7 +2518,10 @@ class Naoko(object):
                         if abs(self.state.dur - dur) >= 2:
                             self.logger.debug("Large mismatch detected, clearing Cytube cache.")
                             self.send("uncache", {"id" : vid})
-                            self.invalidVideo("Duration Mismatch")
+                            # moving through the playlist too fast can cause a race condition
+                            # where the previous video's time (from Youtube API) will be used
+                            # resulting in every video mistmaching and be skipped.
+                            ###self.invalidVideo("Duration Mismatch")
                         self.state.dur = dur
                     #self.playerAction.set()
             return
@@ -2987,6 +3011,7 @@ class Naoko(object):
 
     def _vdbTitles(self, vdbDict):
         """Returns formatted titles parsed from VDB data (dict)"""
+        vdbDict = CaseInsensitiveDict(vdbDict)
         titles = []
         for name in vdbDict["Names"]:
             titles.append(name["Value"])
@@ -2998,6 +3023,9 @@ class Naoko(object):
 
     def _vdbArtists(self, vdbDict):
         """Returns formatted artists parsed from VDB data (dict)"""
+        # CaseInsensitiveDict search
+        # there may be an update where the keys are all lowercase
+        vdbDict = CaseInsensitiveDict(vdbDict)
         labels = ["OtherGroup", "Producer", "Lyricist", "Arranger", "Composer",
                   "Instrumentalist", "Vocaloid", "UTAU",
                   "OtherVoiceSynthesizer", "Vocalist", "OtherVocalist"]
@@ -3021,7 +3049,7 @@ class Naoko(object):
                 # sometimes the Artist field is null
                 except(TypeError):
                     roles = ['null']
-            for i, role in enumerate(roles):
+            for role in roles:
                 try:
                     if di.get(role):
                         di[role].append(name[0])
