@@ -2989,33 +2989,35 @@ class Naoko(object):
             js = ''.join(non)
 
         else:
-            try:
-                vdbDict = json.loads(data[3])
-                titles = self._vdbTitles(vdbDict)
-                artists = self._vdbArtists(vdbDict)
-                js = [titles, "</br>", artists, " "]
-                js = "".join(js)
-                li = ['$("#yukarin").remove();' '$("#queue_align2").prepend(']
-                link = " <a href='http://vocadb.net/S/" + str(data[2])
-                link2 = "' target='blank' title='link by: " + data[4]
-                link3 = "' button class = 'btn btn-mini btn-info vdb_btn'>"
-                link4 = "VocaDB</a>"
-                li.extend(['"<div id=\'yukarin\' class=\'well well-small\'>',
-                          js, link, link2, link3, link4, '</div>");'])
-                js = ''.join(li)
+           # try:
+            vdbDict = json.loads(data[3])
+            vdbDict = CaseInsensitiveDict(vdbDict)
+            titles = self._vdbTitles(vdbDict)
+            artists = self._vdbArtists(vdbDict)
+            js = [titles, "</br>", artists, " "]
+            js = "".join(js)
+            li = ['$("#yukarin").remove();' '$("#queue_align2").prepend(']
+            link = " <a href='http://vocadb.net/S/" + str(data[2])
+            link2 = "' target='blank' title='link by: " + data[4]
+            link3 = "' button class = 'btn btn-mini btn-info vdb_btn'>"
+            link4 = "VocaDB</a>"
+            li.extend(['"<div id=\'yukarin\' class=\'well well-small\'>',
+                      js, link, link2, link3, link4, '</div>");'])
+            js = ''.join(li)
                 
-            except (TypeError, ValueError, KeyError) as e:
-                self.logger.error("emitJS: Error parsing JSON:%s" % e)
-                js = non
+           # except (TypeError, ValueError, KeyError) as e:
+            #    self.logger.error("emitJS: Error parsing JSON:%s" % e)
+            #    js = non
 
         self.lastJs = js
         self.send("setChannelJS", {"js": js})
 
     def _vdbTitles(self, vdbDict):
         """Returns formatted titles parsed from VDB data (dict)"""
-        vdbDict = CaseInsensitiveDict(vdbDict)
+        #vdbDict = CaseInsensitiveDict(vdbDict)
         titles = []
         for name in vdbDict["Names"]:
+            name = CaseInsensitiveDict(name)
             titles.append(name["Value"])
         titles = " / ".join(titles)
         # escape " and '
@@ -3027,15 +3029,17 @@ class Naoko(object):
         """Returns formatted artists parsed from VDB data (dict)"""
         # CaseInsensitiveDict search
         # there may be an update where the keys are all lowercase
-        vdbDict = CaseInsensitiveDict(vdbDict)
+        #vdbDict = CaseInsensitiveDict(vdbDict)
         labels = ["OtherGroup", "Producer", "Lyricist", "Arranger", "Composer",
                   "Instrumentalist", "Vocaloid", "UTAU",
-                  "OtherVoiceSynthesizer", "Vocalist", "OtherVocalist"]
+                  "OtherVoiceSynthesizer", "Vocalist", "OtherVocalist", "Other"]
+                  # Other is self defined, for artists with no VocaDB page.
 
         alias = {"OtherVoiceSynthesizer": "Voice Synthesizer",
                  "OtherGroup": "Group", "OtherVocalist": "Vocalist"}
         di = {}
         for artist in vdbDict["Artists"]:
+            artist = CaseInsensitiveDict(artist)
             name = artist["Name"].split(", ")
             try:
                 roles = artist["Roles"].split(", ")
@@ -3047,10 +3051,18 @@ class Naoko(object):
             
             if roles == ["Default"]:
                 try:
-                    roles = artist["Artist"]["ArtistType"].split(", ")
-                # sometimes the Artist field is null
+                    artist_in = artist["Artist"]
+                    roles = CaseInsensitiveDict(artist_in)["ArtistType"].split(", ")
+
+                # some Artists do not have an entry in VocaDB
+                # in V2 we get a KeyError; the Artist field doesn't exist
+                except(KeyError):
+                    roles = ['Other']
+
+                # in V1 the Artist field is null
                 except(TypeError):
                     roles = ['null']
+
             for role in roles:
                 try:
                     if di.get(role):

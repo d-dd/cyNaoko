@@ -424,6 +424,14 @@ class APIClient(object):
          return None, None
 
     def _getVocaDbApi(self, service, vidId):
+        url = ["http://vocadb.net/api/songs"]
+        opts = "&lang=romaji&fields=artists,names"
+        url.extend(["?pvId=", vidId, "&pvService=", service, opts])
+        url = ''.join(url)
+        vdbJson = self._getJsonApi(url, "VocaDB")
+        return self._verifyVdbJson(vdbJson)
+
+    def _getVocaDbApiVersionOne(self, service, vidId):
         url = ["http://vocadb.net/Api/v1/Song/ByPV"]
         opts = "&lang=romaji&IncludeAlbums=False&includeTags=False"
         url.extend(["?pvID=", vidId, "&service=", service, opts])
@@ -439,14 +447,14 @@ class APIClient(object):
             self.logger.error("Could not decode JSON:%s" % e)
             return None, None
         try:
-            return vdbDict["Id"], vdbJson
-        except TypeError, e:
+            return vdbDict["id"], vdbJson # lowercase, version 2 VocaDB Api
+        except (TypeError, KeyError) as e:
             self.logger.error("Could not parse JSON:%s" % e)
             return None, None
         
     def getVdbById(self, service, vidId, vocadb_id, vocadb_rep):
-        url = ["http://vocadb.net/Api/v1/Song/Details/"]
-        options = "?lang=romaji&IncludeAlbums=False&IncludeTags=False"
+        url = ["http://vocadb.net/api/songs/"]
+        options = "?lang=romaji&fields=artists,names"
         url.extend([vocadb_id, options])
         url = ''.join(url)
         self.logger.debug("VOCADB API: Requesting data from VocaDB: %s" % url)
@@ -485,10 +493,13 @@ class APIClient(object):
         return None
 
     def _getJsonApi(self, url, provider):
+        self.logger.debug("Obtaining API from %s, %s ." % (provider, url))
         try:
             if provider == "VocaDB":
-                return urllib2.urlopen(urllib2.Request(url, headers=USER_AGENT),
-                                       timeout=5).read()
+                req = urllib2.Request(url)
+                req.add_header('data', 'JSON')
+                req.add_header('User-agent', USER_AGENT)
+                return urllib2.urlopen(req, timeout=5).read()
             else:
                 return urllib2.urlopen(urllib2.Request(url), timeout=5).read()
         except urllib2.socket.timeout, e:
