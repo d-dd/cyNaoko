@@ -2099,6 +2099,7 @@ class Naoko(object):
     
     # Queries the anagram bot with the provided string.
     def anagram(self, command, user, data):
+        if data.startswith(('$', '/')): return
         text = re.sub(r"[^a-zA-Z]", "", data)
         if not text: return
         if len(text) < 7:
