@@ -2999,7 +2999,7 @@ class Naoko(object):
             js = "".join(js)
             li = ['$("#yukarin").remove();' '$("#queue_align2").prepend(']
             link = " <a href='http://vocadb.net/S/" + str(data[2])
-            link2 = "' target='blank' title='link by: " + data[4]
+            link2 = "' target='_blank' title='link by: " + data[4]
             link3 = "' button class = 'btn btn-mini btn-info vdb_btn'>"
             link4 = "VocaDB</a>"
             li.extend(['"<div id=\'yukarin\' class=\'well well-small\'>',
