@@ -345,6 +345,7 @@ class Naoko(object):
         self.selfUser = CytubeUser(self.name, 3, False, {"afk": False}, {"text": "", "image": ""}, deque(maxlen=3))
 
         # Connect to the room
+        self.send("initChannelCallbacks")
         self.send("joinChannel", {"name": self.room})
         
         # Log In
@@ -1204,7 +1205,7 @@ class Naoko(object):
                 raise Exception("Failed to login.")
 
     def playlistLock(self, tag, data):
-        self.room_info["locked"] = data["locked"]
+        self.room_info["locked"] = data
 
     def addUser(self, tag, data, isSelf=False):
         self._addUser(data, data["name"] == self.name)
@@ -2977,7 +2978,7 @@ class Naoko(object):
             return
 
         vdblink = "http://vocadb.net/"
-        non = ['$("#yukarin").remove();$("#queue_align2").prepend("<div id=', 
+        non = ['$("#yukarin").remove();$("#vdbslot").append("<div id=', 
                "'yukarin' class='well well-small'></br><a target='_blank'",
                " button class='btn btn-mini btn-warning vdb_btn' href='",
                VDB_README_URL, "'>?</a>     <a target='_blank' href='", vdblink,
@@ -2997,7 +2998,7 @@ class Naoko(object):
             artists = self._vdbArtists(vdbDict)
             js = [titles, "</br>", artists, " "]
             js = "".join(js)
-            li = ['$("#yukarin").remove();' '$("#queue_align2").prepend(']
+            li = ['$("#yukarin").remove();' '$("#vdbslot").append(']
             link = " <a href='http://vocadb.net/S/" + str(data[2])
             link2 = "' target='_blank' title='link by: " + data[4]
             link3 = "' button class = 'btn btn-mini btn-info vdb_btn'>"
@@ -3099,7 +3100,7 @@ class Naoko(object):
             return
         js = [self.lastJs]
         js.append('$("#currenttitle").prepend("<span class=')
-        js.append("'label' title='Omitted video'>!<span>  \");")
+        js.append("'label label-default' title='Omitted video'>!<span>  \");")
         js = ''.join(js)
         self.send("setChannelJS", {"js": js})
 
@@ -3110,7 +3111,7 @@ class Naoko(object):
         self.logger.debug("Adding non-db display warning")
         js = [self.lastJs]
         pre = '$("#currenttitle").prepend("<span class='
-        pre2 = "'label label-important' title='Not in database. "
+        pre2 = "'label label-warning' title='Not in database. "
         pre3 = "Please requeue the video.'>!!</span>\");"
         js.extend([pre, pre2, pre3])
         js = ''.join(js)
