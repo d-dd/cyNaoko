@@ -2978,17 +2978,34 @@ class Naoko(object):
             return
 
         vdblink = "http://vocadb.net/"
-        non = ['$("#yukarin").remove();$("#vdbslot").append("<div id=', 
-               "'yukarin' class='well well-small'></br><a target='_blank'",
-               " button class='btn btn-mini btn-warning vdb_btn' href='",
-               VDB_README_URL, "'>?</a>     <a target='_blank' href='", vdblink,
-               "' button class='btn btn-mini btn-info vdb_btn'>VocaDB</a>",
-               '<div>");']
-        if not data:
-            js = ''.join(non)
 
-        elif not data[2]:
+        setup = ['if (!$("#showvdb").length){',
+                 '$("#showvdb, #vdbcontrol").remove();',
+                 '$("#plcontrol").append(\'<button id="showvdb" title=',
+                 '"Show song information" data-toggle="collapse" ',
+                 'data-target="#vdbcontrol" class="btn btn-sm ' ,
+                 'btn-default', 
+                 '">',
+                 '<span class="glyphicon glyphicon-music"></span></button>\');',
+                 '$("#rightpane-inner").prepend(\'<div id="vdbcontrol" '
+                 'class="plcontrol-collapse col-lg-12 col-md-12 collapse ',
+                 'style="height: auto;"><div class="vertical-spacer"></div> ',
+                 '<div class="input-group"><div id="vdbslot"></div></div>',
+                 '</div>\');}']
+
+
+        non = ['$("#yukarin").remove();$("#vdbslot").append("<div id=', 
+               "'yukarin' class='well well-small'><a target='_blank'",
+               " button class='btn btn-xs btn-warning vdb_btn' href='",
+               VDB_README_URL, "'>?</a>     <a target='_blank' href='", vdblink,
+               "' button class='btn btn-xs btn-info vdb_btn'>VocaDB</a>",
+               '<div>");']
+        if not data or not data[2]:
             js = ''.join(non)
+            setup.extend('$("#showvdb").removeClass("btn-success");')
+
+       # elif not data[2]:
+       #     js = ''.join(non)
 
         else:
            # try:
@@ -3001,18 +3018,20 @@ class Naoko(object):
             li = ['$("#yukarin").remove();' '$("#vdbslot").append(']
             link = " <a href='http://vocadb.net/S/" + str(data[2])
             link2 = "' target='_blank' title='link by: " + data[4]
-            link3 = "' button class = 'btn btn-mini btn-info vdb_btn'>"
+            link3 = "' button class = 'btn btn-xs btn-info vdb_btn'>"
             link4 = "VocaDB</a>"
             li.extend(['"<div id=\'yukarin\' class=\'well well-small\'>',
                       js, link, link2, link3, link4, '</div>");'])
             js = ''.join(li)
+
                 
-           # except (TypeError, ValueError, KeyError) as e:
-            #    self.logger.error("emitJS: Error parsing JSON:%s" % e)
-            #    js = non
+            # give green color if there is data
+            setup.extend('$("#showvdb").addClass("btn-success");')
+            setup.extend('$("#showvdb").removeClass("btn-default");')
 
         self.lastJs = js
-        self.send("setChannelJS", {"js": js})
+        setup = ''.join(setup)
+        self.send("setChannelJS", {"js": setup+js})
 
     def _vdbTitles(self, vdbDict):
         """Returns formatted titles parsed from VDB data (dict)"""
