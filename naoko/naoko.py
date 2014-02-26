@@ -2996,7 +2996,7 @@ class Naoko(object):
 
 
         non = ['$("#yukarin").remove();$("#vdbslot").append("<div id=', 
-               "'yukarin' class='well well-small'><a target='_blank'",
+               "'yukarin'><a target='_blank'",
                " button class='btn btn-xs btn-warning vdb_btn' href='",
                VDB_README_URL, "'>?</a>     <a target='_blank' href='", vdblink,
                "' button class='btn btn-xs btn-info vdb_btn'>VocaDB</a>",
