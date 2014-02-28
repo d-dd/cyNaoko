@@ -65,6 +65,8 @@ class APIClient(object):
         out = (self._MSTranslate(token, text, src, dst) or "").decode("utf-8")
         # Highly unlikely that any valid translation contains the following
         if out.find("<h1>Argument Exception</h1>") != -1: return ""
+        # Seems to error if too many requests are made in a short interval
+        if out.find("<h1>TranslateApiException</h1>") != -1: return ""
         return out[out.find(">") + 1:out.rfind("<")]
 
     def _MSTranslate(self, token, text, src, dst):
