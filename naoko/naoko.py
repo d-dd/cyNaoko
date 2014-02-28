@@ -2982,19 +2982,17 @@ class Naoko(object):
 
         vdblink = "http://vocadb.net/"
 
-        setup = ['if (!$("#showvdb").length){',
-                 '$("#showvdb, #vdbcontrol").remove();',
-                 '$("#plcontrol").append(\'<button id="showvdb" title=',
-                 '"Show song information" data-toggle="collapse" ',
-                 'data-target="#vdbcontrol" class="btn btn-sm ' ,
-                 'btn-default', 
-                 '">',
-                 '<span class="glyphicon glyphicon-music"></span></button>\');',
+        setup = [('if (!$("#showvdb").length){'
+                 '$("#showvdb, #vdbcontrol").remove();'
+                 '$("#plcontrol").append(\'<button id="showvdb"'
+                 'data-toggle="collapse" '
+                 'data-target="#vdbcontrol" class="btn btn-sm btn-default">'
+                 '<span id="vdb-btn"></span></button>\');'
                  '$("#rightpane-inner").prepend(\'<div id="vdbcontrol" '
-                 'class="plcontrol-collapse col-lg-12 col-md-12 collapse ',
-                 'style="height: auto;"><div class="vertical-spacer"></div> ',
-                 '<div class="input-group"><div id="vdbslot"></div></div>',
-                 '</div>\');}']
+                 'class="plcontrol-collapse col-lg-12 col-md-12 collapse '
+                 'style="height: auto;"><div class="vertical-spacer"></div> '
+                 '<div class="input-group"><div id="vdbslot"></div></div>'
+                 '</div>\');}')]
 
 
         non = ['$("#yukarin").remove();$("#vdbslot").append("<div id=', 
@@ -3003,13 +3001,15 @@ class Naoko(object):
                VDB_README_URL, "'>?</a>     <a target='_blank' href='", vdblink,
                "' button class='btn btn-xs btn-info vdb_btn'>VocaDB</a>",
                '<div>");']
+
+        setup.extend('$("#vdb-btn").removeClass();')
+        setup.extend('$("#vdb-btn").addClass("glyphicon glyphicon-music");')
+
         if not data or not data[2]:
             js = ''.join(non)
-            setup.extend('$("#showvdb").removeClass("btn-success");')
-
-       # elif not data[2]:
-       #     js = ''.join(non)
-
+            setup.extend(('$("#showvdb").removeClass();'
+                         '$("#showvdb").addClass("btn btn-sm btn-default");'
+                         '$("#showvdb").attr("title", "");'))
         else:
            # try:
             vdbDict = json.loads(data[3])
@@ -3028,13 +3028,16 @@ class Naoko(object):
             js = ''.join(li)
 
                 
-            # give green color if there is data
-            setup.extend('$("#showvdb").addClass("btn-success");')
-            setup.extend('$("#showvdb").removeClass("btn-default");')
+            # give green color and add title if there is data
+            setup.extend(('$("#showvdb").removeClass();'
+                        '$("#showvdb").addClass("btn btn-sm btn-info");'
+                        '$("#showvdb").attr("title", "Show song information");')
+                        )
 
-        self.lastJs = js
         setup = ''.join(setup)
-        self.send("setChannelJS", {"js": setup+js})
+        ready_js = setup + js
+        self.lastJs = ready_js
+        self.send("setChannelJS", {"js": ready_js})
 
     def _vdbTitles(self, vdbDict):
         """Returns formatted titles parsed from VDB data (dict)"""
@@ -3121,8 +3124,12 @@ class Naoko(object):
         if not self.doneInit:
             return
         js = [self.lastJs]
-        js.append('$("#currenttitle").prepend("<span class=')
-        js.append("'label label-default' title='Omitted video'>!<span>  \");")
+
+        js.append(('$("#vdb-btn").removeClass();'
+                   '$("#vdb-btn").addClass("glyphicon glyphicon-thumbs-down");'
+                   '$("#showvdb").attr("title", "This video has been omitted '
+                   'from the $addrandom pool.");'))
+        
         js = ''.join(js)
         self.send("setChannelJS", {"js": js})
 
@@ -3132,10 +3139,12 @@ class Naoko(object):
             return
         self.logger.debug("Adding non-db display warning")
         js = [self.lastJs]
-        pre = '$("#currenttitle").prepend("<span class='
-        pre2 = "'label label-warning' title='Not in database. "
-        pre3 = "Please requeue the video.'>!!</span>\");"
-        js.extend([pre, pre2, pre3])
+        js.extend(('$("#vdb-btn").removeClass();'
+                   '$("#vdb-btn").addClass("glyphicon glyphicon-wrench");'
+                   '$("#showvdb").attr("title", "This video is has not been'
+                   ' saved to the database.");'
+                   '$("#showvdb").removeClass();'
+                   '$("#showvdb").addClass("btn btn-sm btn-danger");'))
         js = ''.join(js)
         self.send("setChannelJS", {"js": js})
 
