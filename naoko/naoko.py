@@ -2383,6 +2383,7 @@ class Naoko(object):
         output = output.replace("&lt;", "<")
         output = output.replace("&quot;", "\"")
         output = output.replace("&amp;", "&")
+        output = output.replace("&#39;", "'")
 
         return output
 
