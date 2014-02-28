@@ -3021,7 +3021,7 @@ class Naoko(object):
             link2 = "' target='_blank' title='link by: " + data[4]
             link3 = "' button class = 'btn btn-xs btn-info vdb_btn'>"
             link4 = "VocaDB</a>"
-            li.extend(['"<div id=\'yukarin\' class=\'well well-small\'>',
+            li.extend(['"<div id=\'yukarin\'>',
                       js, link, link2, link3, link4, '</div>");'])
             js = ''.join(li)
 
