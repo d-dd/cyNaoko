@@ -226,6 +226,8 @@ class Naoko(object):
         self._initHandlers()
         self._initCommandHandlers()
         self._initIRCCommandHandlers()
+        self._initPMCommandHandlers()
+        
         self._initPersistentSettings()
 
         # Save init time for uptime calculation
@@ -282,6 +284,7 @@ class Naoko(object):
         # Used to avoid spamming chat or the playlist
         self.last_random = time.time() - 5
         self.last_quote = time.time() - 5
+        self.last_pm = time.time() - 5
        
         # All the information related to playback state
         self.state = Object()
@@ -507,7 +510,7 @@ class Naoko(object):
                                 userid=name, timestamp=None, protocol='IRC', channel=self.channel, flags=None))
 
                         self.enqueueMsg(("(" + name + ") " + msg), irc=False)
-                        self.chatCommand(IRCUser(*(name, 1, False)), msg, True)
+                        self.chatCommand(IRCUser(*(name, 1, False)), msg, prot='irc')
                     self.irc_logger.info("IRC %r:%r", name, msg)
                 # Currently ignore messages sent directly to her
                 elif data.find("PRIVMSG " + self.irc_nick + " :") != -1:
@@ -771,6 +774,7 @@ class Naoko(object):
                          "self"             : self.selfInfo,
                          "kick"             : self.kicked}"""
         self.handlers = {"chatMsg"          : self.chat,
+                        "pm"                : self.pmchat,
                         "setAFK"            : self.unAFK,
                         "channelOpts"       : self.ignore,
                         "setPermissions"    : self.savePermissions,
@@ -915,8 +919,11 @@ class Naoko(object):
                                    "help"               : self.help,
                                    "quote"              : self.quote}
 
+    def _initPMCommandHandlers(self):
+        self.pmCommandHandlers = {"poke"               : self.poke}
+                                 
     # Handle chat commands from both IRC and Synchtube
-    def chatCommand(self, user, msg, irc=False):
+    def chatCommand(self, user, msg, prot='cytube'):
         if not msg or msg[0] != '$': return
        
         """
@@ -928,8 +935,10 @@ class Naoko(object):
             return
         """
         commands = self.commandHandlers
-        if irc:
+        if prot == 'irc':
             commands = self.ircCommandHandlers
+        elif prot == 'cypm':
+            commands = self.pmCommandHandlers
 
         line = msg[1:].split(' ', 1)
         command = line[0].lower()
@@ -947,6 +956,11 @@ class Naoko(object):
                 self.logger.warn("No handler for %s [%s]", command, arg)
         else:
             fn(command, user, arg)
+
+
+    def sendPm(self, user, msg):
+        self.send("pm", {"to": user, "msg": msg})
+        
 
     # Executes a function in the main Synchtube thread
     def stExecute(self, action):
@@ -1291,6 +1305,17 @@ class Naoko(object):
                     userid=user.name, timestamp=None, protocol='CT', channel=self.room, flags=None))
 
         if user.rank >= 2 or user.name == self.name: return
+
+    def pmchat(self, tag, data):
+        if not self.doneInit: return
+        if not data["username"] in self.userlist: return
+
+        user = self.userlist[data["username"]]
+        msg = self._fixChat(data["msg"])
+        filtered = self._filterChat(msg)
+
+        if not data["meta"].get("addClass"):
+            self.chatCommand(user, msg, prot='cypm')
 
         # REIMPLEMENT
         """
@@ -1967,6 +1992,12 @@ class Naoko(object):
         uptime = time.time() - self.startTime
         uptime = str(timedelta(seconds=round(uptime)))
         self.enqueueMsg("Uptime: %s" % uptime)
+
+    def poke(self, command, user, data):
+        if time.time() - self.last_pm < 2: return 
+        self.last_pm = time.time()
+        msg = "Please be nice!"
+        self.sendPm(user.name, msg)
 
     def eightBall(self, command, user, data):
         if not data: return
