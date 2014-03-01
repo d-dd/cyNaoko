@@ -791,7 +791,7 @@ class Naoko(object):
                         "chatFilters"       : self.ignore,
                         "rank"              : self.ignore,
                         "closePoll"         : self.ignore,
-                        "newPoll"           : self.ignore,
+                        "newPoll"           : self.votePoll,
                         "updatePoll"        : self.ignore,
                         "voteskip"          : self.ignore,
                         "drinkCount"        : self.ignore,
@@ -1209,6 +1209,21 @@ class Naoko(object):
     def saveMotd(self, tag, data):
         self.lastMotd = data["motd"]
         self.logger.debug("Saving MOTD.")
+
+    def votePoll(self, tag, data):
+        if not self.doneInit: return
+        opts = data["options"]
+        if not opts: return #poll can be opened without options
+        if len(opts) == 1:
+            msg = "/me doesn't see a point in this poll."
+        # don't vote if poll title contains the bot's name
+        elif self.selfUser.name.lower() in data["title"].lower():
+            msg = "/me doesn't want to vote."
+        else:
+            vote = random.randrange(len(opts))
+            self.send("vote", {"option" :vote})
+            msg = "/me choses *%s*."% opts[vote]
+        self.st_queue.append(msg)
 
     def login(self, tag, data):
         if not data["success"] or "error" in data:
