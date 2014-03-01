@@ -247,6 +247,10 @@ class Naoko(object):
         self.skips = deque(maxlen=3)
         self.muted = False
         self.doneInit = False
+
+        # Wether Naoko should vote on a poll
+        self.shouldVote = False
+        self.openPoll = {}
         
         # Workarounds for non-atomic operations
         self.verboseBanlist = False
@@ -790,9 +794,9 @@ class Naoko(object):
                         "moveVideo"         : self.moveMedia,
                         "chatFilters"       : self.ignore,
                         "rank"              : self.ignore,
-                        "closePoll"         : self.ignore,
-                        "newPoll"           : self.votePoll,
-                        "updatePoll"        : self.ignore,
+                        "closePoll"         : self.pollClosed,
+                        "newPoll"           : self.setPoll,
+                        "updatePoll"        : self.votePoll,
                         "voteskip"          : self.ignore,
                         "drinkCount"        : self.ignore,
                         "channelCSSJS"      : self.saveJsCss,
@@ -1210,9 +1214,21 @@ class Naoko(object):
         self.lastMotd = data["motd"]
         self.logger.debug("Saving MOTD.")
 
+    def pollClosed(self, tag, data):
+        self.shouldVote = False
+        self.openPoll = {}
+
+    # someone openend a poll
+    def setPoll(self, tag, data):
+        if not self.doneInit: return
+        self.openPoll = data
+        self.shouldVote = True
+
     def votePoll(self, tag, data):
         if not self.doneInit: return
-        opts = data["options"]
+        if not self.shouldVote: return
+        poll = self.openPoll
+        opts = poll["options"]
         if not opts: return #poll can be opened without options
         if len(opts) == 1:
             msg = "/me doesn't see a point in this poll."
@@ -1224,6 +1240,7 @@ class Naoko(object):
             self.send("vote", {"option" :vote})
             msg = "/me choses *%s*."% opts[vote]
         self.st_queue.append(msg)
+        self.shouldVote = False
 
     def login(self, tag, data):
         if not data["success"] or "error" in data:
