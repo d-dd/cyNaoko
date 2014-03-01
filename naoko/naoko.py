@@ -957,6 +957,25 @@ class Naoko(object):
         else:
             fn(command, user, arg)
 
+<<<<<<< HEAD
+=======
+    # Handle PM commands from Cytube
+    def pmCommand(self, user, msg):
+        if not msg or msg[0] != '$': return
+        commands = self.pmCommandHandlers
+        line = msg[1:].split(' ', 1)
+        command = line[0].lower()
+        try:
+            if len(line) >1:
+                arg = line[1].strip()
+            else:
+                arg = ''
+            fn = commands[command]
+        except:
+            self.logger.warn("No handler for %s [%s]", command, arg)
+        else:
+           fn(command, user, arg)
+>>>>>>> 81b64284c0c9069bb310b5b9ef678f18a4b8a676
 
     def sendPm(self, user, msg):
         self.send("pm", {"to": user, "msg": msg})
@@ -1315,7 +1334,12 @@ class Naoko(object):
         filtered = self._filterChat(msg)
 
         if not data["meta"].get("addClass"):
+<<<<<<< HEAD
             self.chatCommand(user, msg, prot='cypm')
+=======
+            self.pmCommand(user, msg)
+
+>>>>>>> 81b64284c0c9069bb310b5b9ef678f18a4b8a676
 
         # REIMPLEMENT
         """
