@@ -1230,7 +1230,7 @@ class Naoko(object):
         if not self.shouldVote: return
         poll = self.openPoll
         opts = poll["options"]
-        if not opts: return #poll can be opened without options
+        if not opts: return # poll can be opened without options
         if len(opts) == 1:
             msg = "/me doesn't see a point in this poll."
         # don't vote if poll title contains the bot's name
@@ -1239,7 +1239,7 @@ class Naoko(object):
         else:
             vote = random.randrange(len(opts))
             self.send("vote", {"option" :vote})
-            msg = "/me choses *%s*."% opts[vote]
+            msg = "I chose *%s*!" % self._fixChat(opts[vote])
         self.st_queue.append(msg)
         self.shouldVote = False
 
