@@ -26,8 +26,10 @@ API_THROTTLE = 0.5
 # Countries a video must be able to play in
 REQUIRED_COUNTRIES = set(["CA", "US"])
 
-# Custom user agent for VocaDB API requests, should be more descriptive
-USER_AGENT = {"User-Agent": "cyNaoko"}
+# Custom user agent for VocaDB API requests. Leave empty to disable.
+# Only fill this if the channel is strictly for viewing Vocaloid related media. 
+# e.g. {"User-agent": "cyTube/3.0 (cyNaoko; username; url)"}
+VDB_USER_AGENT = {}
 
 # Link to VocaDB Help File
 VDB_README_URL = "https://github.com/d-dd/cyNaoko/blob/master/README.md#VocaDB"

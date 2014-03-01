@@ -500,7 +500,7 @@ class APIClient(object):
             if provider == "VocaDB":
                 req = urllib2.Request(url)
                 req.add_header('data', 'JSON')
-                req.add_header('User-agent', USER_AGENT)
+                req.add_header('User-agent', VDB_USER_AGENT)
                 return urllib2.urlopen(req, timeout=5).read()
             else:
                 return urllib2.urlopen(urllib2.Request(url), timeout=5).read()

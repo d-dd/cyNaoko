@@ -233,8 +233,9 @@ class Naoko(object):
         # Save init time for uptime calculation
         self.startTime = time.time()
 
-        # VocaDB display is on by default
-        self.vocaDbState = True
+        # VocaDB display is on by default, if enabled
+        self.vocaDbState = True if VDB_USER_AGENT else False
+
         # Wether current video is already omitted
         self.alreadyOmitted = False
         self.lastJs = ''
