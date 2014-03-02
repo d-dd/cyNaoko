@@ -499,6 +499,24 @@ class NaokoDB(object):
         self.commit()
         self.unflagVideo(site, vid, 1)
 
+    def insertOfflineVideo(self, site, vid, title, dur, nick):
+        """Attemps to insert media information into videos table each
+        mediaChange to ensure media that were queued when the bot is offline
+        are eventually added."""
+        
+        # if the video is already in the db, it will raise an IntegrityError
+        try:
+            self.logger.debug("Insert or Abort %s into videos (playback)",
+                              (site, vid, int(dur * 1000), title, 0))
+            self.executeDML("INSERT OR ABORT INTO videos VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                            (site, vid, int(dur * 1000), title, 0, None, None, None))
+            self.executeDML("INSERT INTO video_stats VALUES(?, ?, ?)",
+                            (site, vid, nick))
+            self.commit()
+
+        except(sqlite3.IntegrityError):
+            self.logger.debug("insertOfflineVideo: The media is already in the database.")
+
     def insertPlaylist(self, name, vids, nick):
         """
         Inserts a playlist into the database.

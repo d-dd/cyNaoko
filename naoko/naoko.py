@@ -1136,6 +1136,12 @@ class Naoko(object):
             elif self.state.state != self._STATE_NORMAL_SKIP:
                 self.state.state = self._STATE_FORCED_SWITCH
             
+            # Attempt to insert media information to the database each mediaChange
+            # to eliminate not-in-database errors.
+            nick = self.vidlist[self.state.current].queueby
+            self.sqlExecute(package(self.insertOfflineVideo, data["type"],
+                           data["id"], data["title"], data["seconds"], nick))
+
             # VocaDB calls
             # otherwise Naoko will get kicked trying to emit JS
             if self.selfUser.rank >= 3 and self.vocaDbState:
@@ -2543,6 +2549,10 @@ class Naoko(object):
     # Wrapper for dbclient.insertVideo
     def insertVideo(self, *args, **kwargs):
         self.dbclient.insertVideo(*args, **kwargs)
+
+    # Wrapper for dbclient.insertOfflineVideo
+    def insertOfflineVideo(self, *args, **kwargs):
+        self.dbclient.insertOfflineVideo(*args, **kwargs)
     
     # Wrapper for dbclient.insertUserCount
     def insertUserCount(self, *args, **kwargs):
@@ -3038,8 +3048,6 @@ class Naoko(object):
         self.dbclient.updateVdbInfo(*args, **kwargs)
 
     def emitJs(self, data):
-        # for now just enqueueMsg
-        self.logger.debug(data)
         if not self.doneInit:
             return
 
