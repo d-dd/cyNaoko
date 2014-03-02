@@ -16,7 +16,9 @@ kicked = False
 restarting = False
 
 # Set up logging
-logging.basicConfig(format='%(name)-15s:%(levelname)-8s - %(message)s', stream=sys.__stderr__)
+FORMAT = '%(asctime)s %(name)-15s:%(levelname)-8s - %(message)s'
+DATEFMT = '%Y-%m-%d %H:%M:%S'
+logging.basicConfig(format=FORMAT, datefmt=DATEFMT, stream=sys.__stderr__)
 logger = logging.getLogger("socket.io client")
 logger.setLevel(LOG_LEVEL)
 (info, debug, warning, error) = (logger.info, logger.debug, logger.warning, logger.error)
