@@ -1044,9 +1044,9 @@ class Naoko(object):
             buf = json.dumps(buf, encoding="iso-8859-15")
         self.client.send(5, data=buf)
 
-    def checkVideo(self, site, vid): 
+    def checkVideo(self, site, vid, uid): 
         # appendleft so it doesn't wait for the entire playlist to be checked
-        self.api_queue.appendleft(package(self._checkVideo, site, vid))
+        self.api_queue.appendleft(package(self._checkVideo, site, vid, uid))
         self.apiAction.set()
 
     # Skips the current invalid video.
@@ -1122,8 +1122,14 @@ class Naoko(object):
         
         time = data["currentTime"]
         if tag == "changeMedia":
+            try:
+                uid = self.vidlist[self.state.current].uid
+            # in case the playlist gets cleared
+            except IndexError:
+                uid = -1
+
             if data["type"] in ["yt", "bt", "dm", "vi", "sc"]:
-                self.checkVideo(data["type"], data["id"])
+                self.checkVideo(data["type"], data["id"], uid)
 
             if self.managing:
 
@@ -1138,9 +1144,13 @@ class Naoko(object):
             
             # Attempt to insert media information to the database each mediaChange
             # to eliminate not-in-database errors.
-            nick = self.vidlist[self.state.current].queueby
-            self.sqlExecute(package(self.insertOfflineVideo, data["type"],
+            try:
+                nick = self.vidlist[self.state.current].queueby
+                self.sqlExecute(package(self.insertOfflineVideo, data["type"],
                            data["id"], data["title"], data["seconds"], nick))
+            
+            except IndexError:
+                pass
 
             # VocaDB calls
             # otherwise Naoko will get kicked trying to emit JS
@@ -2565,7 +2575,7 @@ class Naoko(object):
     # Checks to see if the current video isn't invalid, blocked, or removed.
     # Youtube API can sometimes take a few minutes to relfect privacy options.
     # Also updates the duration if necessary to prevent certain types of annoying attacks on the room.
-    def _checkVideo(self, site, vid):
+    def _checkVideo(self, site, vid, uid=-1):
         self.loadVideoFlag(site, vid)
         url = vid
         if site == "sc":
@@ -2606,9 +2616,10 @@ class Naoko(object):
                     #self.playerAction.set()
             return
         self.flagVideo(site, vid, 0b1) # flag invalid video
-        uid = self.state.Id
-        self.deleteMedia(uid)
-        self.enqueueMsg("Deleted invalid video id:%s, uid:%s" % (vid, str(uid)))
+
+        if uid !=  -1:
+            self.deleteMedia(uid)
+            self.enqueueMsg("Deleted invalid video id:%s, uid:%d" % (vid, uid))
 
     def loadVideoFlag(self, site, vid):
         """Checks to see if a video has a omit/blacklist flag and process
