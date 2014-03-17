@@ -869,6 +869,7 @@ class Naoko(object):
                                 "addrandom"         : self.addRandom,
                                 "blacklist"         : self.blacklist,
                                 "omit"              : self.omit,
+                                "unomit"            : self.unomit,
                                 "omitd"             : self.omitdel,
                                 "quote"             : self.quote,
                                 "saveplaylist"      : self.savePlaylist,
@@ -1806,12 +1807,51 @@ class Naoko(object):
     def omit(self, command, user, data):
         # mods and up can omit
         if user.rank < 2: return
+        if not data:
+            self.omitCurrent(data)
+        else:
+            self.omitFlag(data)
+
+    def unomit(self, command, user, data):
+        # admins + can unomit
+        if user.rank < 3: return
+        if not data:
+            self.omitCurrent(data, add=False)
+        else:
+            self.omitFlag(data, add=False)
+    
+    def omitFlag(self, data, add=True):
+        arg = data.split()
+        if len(arg) > 2:
+            self.enqueueMsg("Invalid parameters.", irc=False, mumble=False)
+            return
+        id = arg[0]
+        try:
+            type = arg[1]
+        except(IndexError):
+            # default to Youtube
+            type = 'yt'
+        if type not in ('yt', 'vm', 'sc', 'bt', 'dm'):
+            self.enqueueMsg("Invalid parameters.", irc=False, mumble=False)
+            return
+        if add:
+            self.flagVideo(type, id, 0b10)
+        else:
+            self.unflagVideo(type, id, 0b10)
+
+    def omitCurrent(self, data, add=True):
         if self.state.current == -1: return
-        if self.alreadyOmitted: return
         target = self.vidlist[self.state.current].vidinfo
-        self.flagVideo(target.type, target.id, 0b10)
-        self.displayVideoFlag()
-        self.alreadyOmitted = True
+        if add:
+            if self.alreadyOmitted: return
+            self.flagVideo(target.type, target.id, 0b10)
+            self.alreadyOmitted = True
+        else:
+            self.unflagVideo(target.type, target.id, 0b10)
+            self.alreadyOmitted = False
+        self.displayOmitFlag(add)
+
+
 
     # Same as omit, but also deletes the video
     @hasPermission("DELETE")
@@ -2645,7 +2685,7 @@ class Naoko(object):
             flagInt = -1
         if flagInt == 0b10:
             self.alreadyOmitted = True
-            self.displayVideoFlag()
+            self.displayOmitFlag()
     # Validates a video before inserting it into the database.
     # Will correct invalid durations and titles for videos.
     # This makes SQL inserts dependent on the external API.
@@ -3032,6 +3072,7 @@ class Naoko(object):
             data = (service, vidId, data[0][0], data[0][1], data[0][2])
             self.emitJs(data)
 
+
     def vocaDbApi(self, service, vidId):
         self.apiExecute(package(self._vocaDbApi, service, vidId))
 
@@ -3050,6 +3091,13 @@ class Naoko(object):
             info = (service, vidId, vocadb_id, vocadb_data, self.selfUser.name)
             self.storeVocaDb(*info)
             self.emitJs(info)
+
+            # reapply since new VocaDB info resets the js
+            # this only happens when a new video(no data in vdb columns) has
+            # been omitted (manually or $omit vid_id, vid_type) before VDB
+            # API call
+            if self.alreadyOmitted:
+                self.displayOmitFlag()
 
     def storeVocaDb(self, site, vid, vocadb_id, vocadb_data, vocadb_rep):
         self.sqlExecute(package(self._storeVocaDb, site, vid, vocadb_id,
@@ -3200,17 +3248,22 @@ class Naoko(object):
         artists = artists.replace("'",  r"\'")
         return artists
 
-    def displayVideoFlag(self):
+    def displayOmitFlag(self, add=True):
         """Adds flag indicator next to video title (#currenttitle)"""
         self.logger.debug("Adding Flag display.")
         if not self.doneInit:
             return
         js = [self.lastJs]
 
-        js.append(('$("#vdb-btn").removeClass();'
+        if add:
+            js.append(('$("#vdb-btn").removeClass();'
                    '$("#vdb-btn").addClass("glyphicon glyphicon-thumbs-down");'
                    '$("#showvdb").attr("title", "This video has been omitted '
                    'from the $addrandom pool.");'))
+        else:
+            js.append(('$("#vdb-btn").removeClass();'
+                   '$("#vdb-btn").addClass("glyphicon glyphicon-music");'
+                   '$("#showvdb").attr("title", "Song Information");'))
         
         js = ''.join(js)
         self.send("setChannelJS", {"js": js})
