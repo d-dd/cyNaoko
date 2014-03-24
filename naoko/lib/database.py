@@ -562,7 +562,8 @@ class NaokoDB(object):
                 
         # Finally UPDATE the video table with the ruleId
         self.logger.warning("Updating videos table swapRule column with ruleId:%s" % ruleId)
-        self.executeDML("UPDATE videos SET swapRule=? WHERE type=? AND id=?", (ruleId, badType, badId))
+        self.executeDML("UPDATE videos SET swapRule=?, flags=? WHERE type=? AND id=?",
+                        (ruleId, 0b10, badType, badId))
         self.commit()
         return ('ok', 'Added rule to the database.')
 
