@@ -188,6 +188,33 @@ class NaokoDB(object):
                 self.executeDML(stmt)
             self.commit()
 
+        if version < 8:
+            stmts = ["ALTER TABLE videos RENAME TO videos_v7",
+                     ("CREATE TABLE IF NOT EXISTS rules("
+                      "ruleId INTEGER PRIMARY KEY AUTOINCREMENT, "
+                      "replaceType TEXT, replaceId TEXT, "
+                      "comment TEXT, user TEXT, "
+                      "UNIQUE (replaceType, replaceId) ON CONFLICT ABORT)"),
+
+                     ("CREATE TABLE IF NOT EXISTS videos(type TEXT, id TEXT, "
+                      "duration_ms INTEGER, title TEXT, "
+                      "flags INTEGER DEFAULT 0 NOT NULL, "
+                      "vocadb_id INTEGER, vocadb_data TEXT, vocadb_rep TEXT, "
+                      "swapRule INTEGER, "
+                      "FOREIGN KEY(swapRule) REFERENCES rules(ruleId), "
+                      "PRIMARY KEY(type, id))"),
+
+                      ("INSERT INTO videos SELECT type, id, duration_ms, title, "
+                      "flags, vocadb_id, vocadb_data, vocadb_rep, NULL FROM videos_v7"),
+
+
+                    "UPDATE metadata SET value = '8' WHERE key = 'dbversion'"
+                    ]
+
+            for stmt in stmts:
+                print stmt
+                self.executeDML(stmt)
+            self.commit()
         self._foreign_keys = True
  
     @dbopen
@@ -481,6 +508,82 @@ class NaokoDB(object):
         binds = (site, vid)
         return self.fetch(sql, binds)
 
+    def addSwapRule(self, badType, badId, goodType, goodId, comment, user):
+        #test Foreign key constraint, should raise exception
+        #self.executeDML("UPDATE videos SET swapRule=999 WHERE type='yt' AND id='F4JobhTBFCk'")
+
+        #Verify inputs
+        # check if video and target are same
+        if (badType, badId) == (goodType, goodId):
+            return ('err', 'videoId and swapTarget are the same (#1)')
+
+        # check if videoId exists, and it doesn't have a rule already
+        sql = "SELECT swapRule FROM videos WHERE type=? AND id=?"
+        binds = (badType, badId)
+        with self.execute(sql, binds) as cur:
+            ret = cur.fetchone()
+        if ret is None:
+            return ('err', 'videoId does not exist in videos table (#2)')
+        if ret[0] is not None:
+            return ('err', 'There is already a rule for that video (#3)')
+
+        # check if videoId is another rule's swapId
+        sql = "SELECT replaceId FROM rules WHERE replaceType=? AND replaceId=?"
+        binds = (badType, badId)
+        with self.execute(sql, binds) as cur:
+            ret =  cur.fetchone()
+        if ret:
+            return ('err', 'videoId is another rule swapId (#4)')
+
+        # check wether swapTarget already has a rule
+        sql = "SELECT swapRule, flags FROM videos WHERE type=? AND id=?"
+        binds = (goodType, goodId)
+        with self.execute(sql, binds) as cur:
+            ret = cur.fetchone()
+        if ret is None: # row not found in videos table
+            return ('err', 'swapTarget is not in videos table (#5)')
+        if ret[0] is not None:
+            return ('err', 'swapTarget already has a rule (#6)')
+        if ret[1] != 0:
+            return ('err', 'swapTarget is flagged (#7)')
+
+        rule = (None, goodType, goodId, comment, user)
+        with self.cursor() as cur:
+            try:
+                cur.execute("INSERT INTO rules VALUES(?, ?, ?, ?, ?)", rule)
+                ruleId = cur.lastrowid
+            except(sqlite3.IntegrityError):
+                #('Integrity Error. Most likely duplicate rule')
+                # find ruleId from already existing rule
+                sql = "SELECT ruleId FROM rules WHERE replaceType=? AND replaceId=?"
+                binds = (goodType, goodId)
+                re = self.fetch(sql, binds)
+                ruleId = re[0][0]
+                
+        # Finally UPDATE the video table with the ruleId
+        self.logger.warning("Updating videos table swapRule column with ruleId:%s" % ruleId)
+        self.executeDML("UPDATE videos SET swapRule=? WHERE type=? AND id=?", (ruleId, badType, badId))
+        self.commit()
+        return ('ok', 'Added rule to the database.')
+
+    def loadSwapRule(self, service, vidId):
+        select_cls = "SELECT swapRule FROM videos "
+        where_cls = "WHERE type=? AND id=?"
+        sql = select_cls + where_cls
+        binds = (service, vidId)
+        re = self.fetch(sql, binds)
+        try:
+            if re[0][0] is None:
+                return re
+        except(TypeError, IndexError):
+            return
+            
+        sql = "SELECT replaceType, replaceId, comment, user FROM rules WHERE ruleId=?"
+        binds = str((re[0][0]),)
+        rule = self.fetch(sql, binds)
+        self.logger.error("DB rules QUERY result: %s" %str(rule))
+        return rule
+
     def insertVideo(self, site, vid, title, dur, nick):
         """
         Inserts a video into the database.
@@ -493,8 +596,8 @@ class NaokoDB(object):
         """
         self.logger.debug("Inserting %s into videos", (site, vid, int(dur * 1000), title, 0))
         self.logger.debug("Inserting %s into video_stats", (site, vid, nick))
-        self.executeDML("INSERT OR IGNORE INTO videos VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
-                        (site, vid, int(dur * 1000), title, 0, None, None, None))
+        self.executeDML("INSERT OR IGNORE INTO videos VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (site, vid, int(dur * 1000), title, 0, None, None, None, None))
         self.executeDML("INSERT INTO video_stats VALUES(?, ?, ?)", (site, vid, nick))
         self.commit()
         self.unflagVideo(site, vid, 1)
@@ -508,8 +611,8 @@ class NaokoDB(object):
         try:
             self.logger.debug("Insert or Abort %s into videos (playback)",
                               (site, vid, int(dur * 1000), title, 0))
-            self.executeDML("INSERT OR ABORT INTO videos VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
-                            (site, vid, int(dur * 1000), title, 0, None, None, None))
+            self.executeDML("INSERT OR ABORT INTO videos VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            (site, vid, int(dur * 1000), title, 0, None, None, None, None))
             self.executeDML("INSERT INTO video_stats VALUES(?, ?, ?)",
                             (site, vid, nick))
             self.commit()

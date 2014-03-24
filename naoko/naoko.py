@@ -253,6 +253,10 @@ class Naoko(object):
         self.shouldVote = False
         self.openPoll = {}
         
+        # For swap command
+        # Waits for queue socket from Cytube before deleting the bad video
+        self.swapDict = {}
+        
         # Workarounds for non-atomic operations
         self.verboseBanlist = False
         self.unbanTarget = None
@@ -871,6 +875,7 @@ class Naoko(object):
                                 "omit"              : self.omit,
                                 "unomit"            : self.unomit,
                                 "omitd"             : self.omitdel,
+                                "swap"              : self.swap,
                                 "quote"             : self.quote,
                                 "saveplaylist"      : self.savePlaylist,
                                 "deleteplaylist"    : self.deletePlaylist,
@@ -1153,6 +1158,9 @@ class Naoko(object):
             except IndexError:
                 pass
 
+
+
+
             # VocaDB calls
             # otherwise Naoko will get kicked trying to emit JS
             if self.selfUser.rank >= 3 and self.vocaDbState:
@@ -1184,6 +1192,28 @@ class Naoko(object):
         if self.pendingSkip:
             self.nextVideo()
             self.pendingSkip = False
+
+        type = data['item']['media']['type']
+        id = data['item']['media']['id']
+        uid = data['item']['uid']
+
+        # check if added video was swap replacement
+        badUid = self.swapDict.get((type, id))
+        if badUid:
+            del self.swapDict[(type, id)]
+            # move it to the proper location and delete badVid
+            self.logger.error("movingSwapMedia from %s to %s." % (uid, badUid))
+            self.send("moveMedia", {"from": uid, "after": badUid})
+
+            # now delete the badUid
+            self.deleteMedia(badUid)
+
+
+        # check for swap
+        if not badUid:
+            self.loadSwapRule(data['item']['media']['type'], 
+                              data['item']['media']['id'], data['item']['uid'])
+        
 
     def removeMedia(self, tag, data):
         self._removeVideo(data["uid"])
@@ -1851,7 +1881,42 @@ class Naoko(object):
             self.alreadyOmitted = False
         self.displayOmitFlag(add)
 
+    def swap(self, command, user, data):
+        if user.rank < 3: return
 
+        # later add keywords like this, last, next, etc
+        data = data.split(',', 4)
+
+        # get rid of leading spaces if there are any
+        li = list()
+        for elem in data:
+            li.append(elem.strip())
+
+        # assume badId, goodId, comment
+        if len(li) == 3:
+            li.insert(0, 'yt')
+            li.insert(2, 'yt')
+
+        # assume badType, badId, goodType, goodId, comment
+        elif len(li) == 5:
+            # badId, badType, goodId, goodType, comment
+            if len(li[1]) == 2 and len(li[3]) == 2:
+                (li[0], li[1], li[2], li[3]) = (li[1], li[0], li[3], li[2])
+
+        else:
+            self.enqueueMsg(("[Invalid]:`$swap (badType), badId, (goodType), "
+                             "goodId, comment`"), irc=False, mumble=False)
+            return
+
+        badType, badId, goodType, goodId, comment = li
+        allowedTypes = ('yt', 'vm', 'sc', 'bt', 'dm')
+
+        if badType not in allowedTypes or goodType not in allowedTypes:
+            self.enqueueMsg("[swap] Invalid `type`", irc=False, mumble=False)
+            return
+
+        self.logger.error((badType, badId, goodType, goodId, comment, user.name))
+        self.addSwapRule(badType, badId, badType, goodId, comment, user.name)
 
     # Same as omit, but also deletes the video
     @hasPermission("DELETE")
@@ -1928,7 +1993,7 @@ class Naoko(object):
                 self.apiAction.set()
 
     # Add an individual video after verifying it
-    def _add(self, site, vid, nick, store):
+    def _add(self, site, vid, nick, store, after=None):
         url = vid
         if site == "sc":
             vid = self.apiclient.resolveSoundcloud(vid)
@@ -1940,7 +2005,7 @@ class Naoko(object):
         title, dur, valid = data
         if valid:
             self.logger.debug("Adding video %s %s %s %s", title, site, vid, dur)
-            self.addExecute(package(self._addVideoToList, site, vid, url, False)) 
+            self.addExecute(package(self._addVideoToList, site, vid, url, False, after)) 
             if store and not dur == 0:
                 self.sqlExecute(package(self.insertVideo, site, vid, title, dur, nick))
         else:
@@ -2596,6 +2661,20 @@ class Naoko(object):
     def _unflagVideo(self, *args, **kwargs):
         self.dbclient.unflagVideo(*args, **kwargs)
 
+    def addSwapRule(self, badType, badId, goodType, goodId, comment, user):
+        self.sqlExecute(package(self._addSwapRule, badType, badId, goodType,
+                                goodId, comment, user))
+
+    def _addSwapRule(self, *args, **kwargs):
+        ret = self.dbclient.addSwapRule(*args, **kwargs)
+        if ret[0] == 'err':
+            self.logger.info("[addSwapRule err] %s" % ret[1])
+        elif ret[1] == 'ok':
+            self.logger.info("[addSwapRule ok]")
+        self.enqueueMsg("[swap]: %s" % ret[1], irc=False, mumble=False)
+            
+
+
     # Wrapper for dbclient.insertVideo
     def insertVideo(self, *args, **kwargs):
         self.dbclient.insertVideo(*args, **kwargs)
@@ -2814,7 +2893,7 @@ class Naoko(object):
             #self.send("am", [v[0], v[1], self.filterString(v[2])[1],"http://i.ytimg.com/vi/%s/default.jpg" % (v[1]), v[3]/1000.0])
         self.addAction.set()
 
-    def _addVideoToList(self, site, vid, url=None, check=True):
+    def _addVideoToList(self, site, vid, url=None, check=True, after=None):
         if site == "sc" and not url:
             self.api_queue.appendleft(package(self._addSoundcloudToList, site, vid, url))
             self.apiAction.set()
@@ -2828,6 +2907,8 @@ class Naoko(object):
             packet["type"] = "vi"
         if site == "sc":
             packet["type"] = url
+        if after:
+            packet["pos"] = str(after)
 
         self.send("queue", packet)
         if check:
@@ -3026,6 +3107,71 @@ class Naoko(object):
             self.emitJs((service, vidId, vocadb_id, vocadb_data, vocadb_rep))
         else:
             self.logger.warning("Something went wrong _vocaDbById")
+
+
+    def loadSwapRule(self, service, vidId, after):
+        # after is the UID of the video before
+
+
+        self.logger.error("loadSwapRule")
+        self.sqlExecute(package(self._loadSwapRule, service, vidId, after))
+
+    def _loadSwapRule(self, service, vidId, after):
+        self.logger.info("Fetching swap data from db, ID:%s, %s"
+                          % (vidId, service))
+        data = self.dbclient.loadSwapRule(service, vidId)
+
+        # no matching row in database
+        if not data:
+            self.logger.info("No matching video found.")
+
+        # swap field is empty
+        elif data[0][0] is None:
+            self.logger.info("SwapRule empty.")
+
+        else:
+            data = (service, vidId, data[0][0], data[0][1], data[0][2],
+                    data[0][3])
+            self.swapMedia(data, after)
+    
+    def swapMedia(self, data, uid):
+        self.logger.warning("swapMedia")
+        badType, badId, goodType, goodId, rep, comment = data
+        # Check if good video is already in playlist, since we will just need
+        # to bump, or do nothing.
+        goodUid = None
+
+        msg = ("Attempting to swap video type %s, id %s with type %s id %s. "
+              "Comment: %s. Behalf of: %s.") % data
+        for video in self.vidlist:
+            if video[0].type == goodType and video[0].id == goodId:
+                # find the uid
+                goodUid = video.uid
+                break
+
+        if goodUid:
+            # find index of both bad and good
+            badIndex = self.getVideoIndexById(uid)
+            goodIndex = self.getVideoIndexById(goodUid)
+
+            # need to bump
+            if goodIndex > badIndex:
+                self.send("moveMedia", {"from": goodUid, "after": uid})
+                msg = "Bumping swap version of video, type %s, id %s." % (goodType, goodId)
+
+            else:
+                msg = ("Deleting video type %s, id %s. A better version of the"
+                      " video is already in the playlist.") % (goodType, goodId)
+
+            # delete the video 
+            self.deleteMedia(uid)
+
+            
+        self.swapDict[(goodType, goodId)] = uid
+        self.enqueueMsg(msg, irc=False, mumble=False)
+        self.api_queue.appendleft(package(self._add, goodType, goodId,
+                                          self.selfUser.name, False))
+        self.apiAction.set()
 
 
     def loadVdbData(self, service, vidId, reRequest=False):
