@@ -238,6 +238,10 @@ class Naoko(object):
 
         # Wether current video is already omitted
         self.alreadyOmitted = False
+
+        # Last omit delete
+        self.lastOmitDelete = time.time() - 3
+
         self.lastJs = ''
         self.lastMotd = ''
         self.channelPermissions = {}
@@ -874,7 +878,6 @@ class Naoko(object):
                                 "blacklist"         : self.blacklist,
                                 "omit"              : self.omit,
                                 "unomit"            : self.unomit,
-                                "omitd"             : self.omitdel,
                                 "swap"              : self.swap,
                                 "quote"             : self.quote,
                                 "saveplaylist"      : self.savePlaylist,
@@ -1837,17 +1840,18 @@ class Naoko(object):
     def omit(self, command, user, data):
         # mods and up can omit
         if user.rank < 2: return
-        if not data:
+        if data == "delete" and time.time() - self.lastOmitDelete < 3: return
+        if not data or data == "delete":
             self.omitCurrent(data)
-        else:
+        elif data and user.rank > 2:
             self.omitFlag(data)
 
     def unomit(self, command, user, data):
         # admins + can unomit
-        if user.rank < 3: return
+        if user.rank < 2: return
         if not data:
             self.omitCurrent(data, add=False)
-        else:
+        elif data and user.rank > 2:
             self.omitFlag(data, add=False)
     
     def omitFlag(self, data, add=True):
@@ -1872,14 +1876,20 @@ class Naoko(object):
     def omitCurrent(self, data, add=True):
         if self.state.current == -1: return
         target = self.vidlist[self.state.current].vidinfo
-        if add:
-            if self.alreadyOmitted: return
+        
+        if add and not self.alreadyOmitted:
             self.flagVideo(target.type, target.id, 0b10)
             self.alreadyOmitted = True
-        else:
+
+        elif not add:
             self.unflagVideo(target.type, target.id, 0b10)
             self.alreadyOmitted = False
         self.displayOmitFlag(add)
+
+        if data == "delete":
+            self.deleteMedia(self.vidlist[self.state.current][3])
+            self.lastOmitDelete = time.time()
+
 
     def swap(self, command, user, data):
         if user.rank < 3: return
