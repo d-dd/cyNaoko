@@ -365,7 +365,7 @@ class Naoko(object):
         self.send("joinChannel", {"name": self.room})
         
         # Log In
-        self.send ("login", {"name": self.name, "pw": self.pw})
+        self.send("login", {"name": self.name, "pw": self.pw})
         
 
         # Start the threads that are required for all normal operation
@@ -1195,7 +1195,14 @@ class Naoko(object):
         if self.pendingSkip:
             self.nextVideo()
             self.pendingSkip = False
-
+        title = data['item']['media']['title']
+        queueby = data['item']['queueby']
+        if not queueby:
+            queueby = 'A Guest'
+        # put a regex filter in channel
+        # @3939([^`]+)#3939, <span class="server-whisper">$1</span>
+        self.enqueueMsg('@3939%s added %s!#3939' % (queueby, title),
+                        irc=False, mumble=False)
         type = data['item']['media']['type']
         id = data['item']['media']['id']
         uid = data['item']['uid']
