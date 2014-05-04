@@ -871,6 +871,7 @@ class Naoko(object):
                                 "who"               : self.who,
                                 "greet"             : self.greet,
                                 "bye"               : self.bye,
+                                "goodnight"         : self.goodnight,
                                 "uptime"            : self.uptime,
                                 "thread"            : self.updateMotdThread,
                                 # Functions that require a database
@@ -879,7 +880,7 @@ class Naoko(object):
                                 "omit"              : self.omit,
                                 "unomit"            : self.unomit,
                                 "swap"              : self.swap,
-                                "quote"             : self.quote,
+                               #"quote"             : self.quote,
                                 "saveplaylist"      : self.savePlaylist,
                                 "deleteplaylist"    : self.deletePlaylist,
                                 # Functions that query an external API
@@ -922,6 +923,7 @@ class Naoko(object):
                                    "steak"              : self.steak,
                                    "greet"              : self.greet,
                                    "bye"                : self.bye,
+                                   "goodnight"          : self.goodnight,
                                    "uptime"             : self.uptime,
                                    "d"                  : self.dice,
                                    "dice"               : self.dice,
@@ -931,7 +933,8 @@ class Naoko(object):
                                    "anagram"            : self.anagram,
                                    "eval"               : self.eval,
                                    "help"               : self.help,
-                                   "quote"              : self.quote}
+                                  #"quote"              : self.quote
+                                   "np"                 : self.nowPlaying}
 
     def _initPMCommandHandlers(self):
         self.pmCommandHandlers = {"poke"               : self.poke}
@@ -2158,10 +2161,26 @@ class Naoko(object):
     def bye(self, command, user, data):
         self.enqueueMsg("Goodbye, %s." % user.name)
 
+    def goodnight(self, command, user, data):
+        self.enqueueMsg("Goodnight, %s." % user.name)
+
     def uptime(self, command, user, data):
         uptime = time.time() - self.startTime
         uptime = str(timedelta(seconds=round(uptime)))
         self.enqueueMsg("Uptime: %s" % uptime)
+
+    def nowPlaying(self, command, user, data):
+        np = self.vidlist[self.state.current].vidinfo
+        if np.type == 'yt':
+            link = 'https://www.youtube.com/watch?v=' + np.id
+        elif np.type == 'vm':
+            link = 'http://vimeo.com/' + np.id
+        elif np.type == 'sc':
+            link = np.id
+        else:
+            link = '%s:%s' % (np.id, np.type)
+        self.enqueueMsg('Playing in Cytube: %s (%s)' % (np.title, link),
+                        st=False, irc=True, mumble=False)
 
     def poke(self, command, user, data):
         if time.time() - self.last_pm < 2: return 
