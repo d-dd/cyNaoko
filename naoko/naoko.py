@@ -260,6 +260,9 @@ class Naoko(object):
         # For swap command
         # Waits for queue socket from Cytube before deleting the bad video
         self.swapDict = {}
+
+        # Wether to silence media add message
+        self.queueMediaCandy = 0
         
         # Workarounds for non-atomic operations
         self.verboseBanlist = False
@@ -937,7 +940,8 @@ class Naoko(object):
                                    "np"                 : self.nowPlaying}
 
     def _initPMCommandHandlers(self):
-        self.pmCommandHandlers = {"poke"               : self.poke}
+        self.pmCommandHandlers = {"poke"               : self.poke,
+                                  "candy"              : self.giveCandy}
                                  
     # Handle chat commands from both IRC and Synchtube
     def chatCommand(self, user, msg, prot='cytube'):
@@ -1204,8 +1208,11 @@ class Naoko(object):
             queueby = 'A Guest'
         # put a regex filter in channel
         # @3939([^`]+)#3939, <span class="server-whisper">$1</span>
-        self.enqueueMsg('@3939%s added %s!#3939' % (queueby, title),
-                        irc=False, mumble=False)
+        if not self.queueMediaCandy:
+            self.enqueueMsg('@3939%s added %s!#3939' % (queueby, title),
+                            irc=False, mumble=False)
+        else:
+            self.queueMediaCandy -= 1
         type = data['item']['media']['type']
         id = data['item']['media']['id']
         uid = data['item']['uid']
@@ -2186,6 +2193,13 @@ class Naoko(object):
         if time.time() - self.last_pm < 2: return 
         self.last_pm = time.time()
         msg = "Please be nice!"
+        self.sendPm(user.name, msg)
+
+    def giveCandy(self, command, user, data):
+        if user.rank < 2: return
+        if self.queueMediaCandy < 2:
+            self.queueMediaCandy += 1
+        msg = "I have %s pieces of candy. (max 2)" % self.queueMediaCandy
         self.sendPm(user.name, msg)
 
     def eightBall(self, command, user, data):
