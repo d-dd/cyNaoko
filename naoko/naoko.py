@@ -1208,9 +1208,10 @@ class Naoko(object):
             queueby = 'A Guest'
         # put a regex filter in channel
         # @3939([^`]+)#3939, <span class="server-whisper">$1</span>
+        print 'candy count#%s' % self.queueMediaCandy
         if not self.queueMediaCandy:
-            self.enqueueMsg('@3939%s added %s!#3939' % (queueby, title),
-                            irc=False, mumble=False)
+            # skip the queue and send directly because playlists adds are fast
+            self.sendChat('@3939%s added %s!#3939' % (queueby, title))
         else:
             self.queueMediaCandy -= 1
         type = data['item']['media']['type']
