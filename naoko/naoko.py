@@ -242,6 +242,9 @@ class Naoko(object):
         # Last omit delete
         self.lastOmitDelete = time.time() - 3
 
+        # usercount coming a bit later than expected
+        self.usercount = 2
+
         self.lastJs = ''
         self.lastMotd = ''
         self.channelPermissions = {}
