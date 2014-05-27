@@ -1389,6 +1389,12 @@ class Naoko(object):
         if not self.doneInit: return
        
         if not data["username"] in self.userlist: return
+        if data["meta"]:
+            try:
+                if data["meta"]["shadow"]:
+                    return
+            except(KeyError):
+                pass
 
         user = self.userlist[data["username"]]
         msg = self._fixChat(data["msg"])
